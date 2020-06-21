@@ -20,6 +20,7 @@ using System.Threading;
 using System.Text.RegularExpressions;
 using System.Data.SQLite;
 using AngleSharp.Text;
+using System.Web;
 
 /***************************************
  * 
@@ -36,6 +37,16 @@ using AngleSharp.Text;
  * 
  * 形態素解析はとりあえずPHP版そのままにYahooAPIを利用
  * １日５万件までなので連続多用注意
+ * -> アプリ内で形態素解析したい
+ * -> ローカルでやれるようになると
+ * 　　・リクエスト数を気にしなくてよくなる
+ * 　　　-> レスごとに形態素解析できる
+ * 　　　  -> 投稿日でレスが登録できるようになる
+ * 　　　    -> アーカイブの扱いに便利
+ * 　　・速度向上する
+ * 　　・sleep入れなくて良くなる（＝速度向上する）
+ * 　　・ユーザ辞書が使えるようになる
+ * 　　  -> 銘柄コード、銘柄名で分類できる
  * 
  * bodyが大きいと413エラー payload to largeになる
  * 文字列の分割を行うがうまくいかない？
@@ -50,10 +61,12 @@ using AngleSharp.Text;
  * DataTableでリストを作る。
  *  -> リスト表示するのはDataTableではない、DataGrigViewが正しい
  *  -> わかりやすい https://dobon.net/vb/dotnet/datagridview/index.html
+ *     -> つくった
  * 
  * 初期フェーズはDBを使う代わりにメモリスタブを使う。
  *  -> sqlite使ったほうが良い
  *    ->テーブル作られてない旨のエラーが出る
+ *      -> テーブル作る処理を呼んでないだけだった
  * 
  * スレッド一覧をさらに分割
  * パス、スレ名、カウント->正規表現で数値だけ抜き出す
@@ -62,12 +75,109 @@ using AngleSharp.Text;
  * 
  * GUIの扱い方はAndroidとほぼ同じ
  * 
+ * 初回の読み込み時に全レス読み込むため時間がかかりすぎる
+ * 何らかの方法（1000レス達成したスレは読まない、10分前のレスしか読まない、など）で対処したい
+ * -> 非同期処理で対処した
+ * 
+ * 正規表現でURLが削除できていない
+ * 
+ * 差分のクロールがうまくいっていない
+ * 
+ * 前回から更新のないスレッドはクロールしないようにする
+ * 
+ * クローリングは非同期処理にしたい
+ * -> method名asyncにしただけでは非同期処理にならない？
+ *   -> 実装した
+ *   
+ * タイマ処理でクローリング、テーブル表示処理をそれぞれバックグラウンドで行いたい
+ * 
  ***************************************/
 
 namespace WindowsFormsApp1
 {
     public partial class Form1 : Form
     {
+        private SQLiteConnection sqliteConnection;
+        private int getResFrom = 180;
+        private string[] ngList =
+        {
+            "ない",
+            "オッパ",
+            "てる",
+            "こと",
+            "だろ",
+            "たら",
+            "する",
+            "たい",
+            "スレ",
+            "レス",
+            "です",
+            "なら",
+            "なっ",
+            "これ",
+            "れる",
+            "ます",
+            "てん",
+            "お前",
+            "コドージ",
+            "クソ",
+            "せる",
+            "ます",
+            "キチガイ",
+            "だっ",
+            "やろ",
+            "ここ",
+            "じゃ",
+            "それ",
+            "やつ",
+            "なかっ",
+            "いる",
+            "もの",
+            "なん",
+            "なる",
+            "なく",
+            "まし",
+            "でしょ",
+            "マジ",
+            "でる",
+            "はぶ",
+            "ちゃう",
+            "すぎ",
+            "くれ",
+            "とけ",
+            "そこ",
+            "くる",
+            "える",
+            "られ",
+            "アホ",
+            "モー",
+            "らしい",
+            "とき",
+            "できる",
+            "でき",
+            "すぎる",
+            "ある",
+            "あと",
+            "NG",
+            "坂井",
+            "ホモ",
+            "わけ",
+            "まとも",
+            "ねー",
+            "とこ",
+            "たく",
+            "しまっ",
+            "いつ",
+            "あれ",
+            "なきゃ",
+            "ところ",
+            "たく",
+            "ただ",
+            "こっち",
+            "おまえ",
+            "うち"
+        };
+
         public Form1()
         {
             InitializeComponent();
@@ -75,47 +185,114 @@ namespace WindowsFormsApp1
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            this.initDbTable();
         }
 
         private void initDbTable()
         {
             var sqlConnectionSb = new SQLiteConnectionStringBuilder { DataSource = ":memory:" };
-            using (var cn = new SQLiteConnection(sqlConnectionSb.ToString()))
+            this.sqliteConnection = new SQLiteConnection(sqlConnectionSb.ToString());
+            this.sqliteConnection.Open();
+            var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
+            //テーブル作成
+            sqliteCommand.CommandText = "CREATE TABLE IF NOT EXISTS threads(" +
+                "path text NOT NULL primary key," +
+                "count INTEGER NOT NULL)";
+            sqliteCommand.ExecuteNonQuery();
+            sqliteCommand.CommandText = "CREATE TABLE IF NOT EXISTS res(" +
+                "id integer NOT NULL PRIMARY KEY," +
+                "buzzword text NOT NULL," +
+                "created_timestamp  integer NOT NULL)";
+            sqliteCommand.ExecuteNonQuery();
+
+            sqliteCommand.CommandText = "insert into res(buzzword, created_timestamp) values('res'," + this.getUnixTimestamp() + ")";
+            sqliteCommand.ExecuteNonQuery();
+        }
+
+        private void showTable()
+        {
+            // DataGridView初期化（データクリア）
+            dataGridView1.Columns.Clear();
+            dataGridView1.Rows.Clear();
+
+            dataGridView1.ColumnCount = 2;
+            dataGridView1.Columns[0].HeaderText = "単語";
+            dataGridView1.Columns[1].HeaderText = "カウント";
+
+
+            var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
+            sqliteCommand.CommandText = "SELECT buzzword, count(buzzword) as cnt FROM res where created_timestamp > @from group by buzzword having count(buzzword) > 3 order by cnt desc";
+            sqliteCommand.Parameters.Add(new SQLiteParameter("@from", this.getUnixTimestamp() - this.getResFrom));
+            var reader = sqliteCommand.ExecuteReader();
+            while (reader.Read())
             {
-                cn.Open();
+                dataGridView1.Rows.Add(reader[0], reader[1]);
+            }
+        }
 
-                using (var cmd = new SQLiteCommand(cn))
+        private bool isExcludeWord(string buzzword)
+        {
+            // 一文字の場合は漢字以外は除外
+            if (buzzword.Length == 1 && !Regex.IsMatch(buzzword, @"^[\u3402-\uFA6D]+$@"))
+            {
+                return true;
+            }
+
+            foreach (string ngWord in ngList)
+            {
+                if (ngWord == buzzword)
                 {
-                    //テーブル作成
-                    cmd.CommandText = "CREATE TABLE IF NOT EXISTS threads(" +
-                        "path text NOT NULL PRIMARY KEY," +
-                        "title TEXT NOT NULL," +
-                        "count INTEGER NOT NULL)";
-                    cmd.ExecuteNonQuery();
-                    cmd.CommandText = "CREATE TABLE IF NOT EXISTS res(" +
-                        "buzzword text NOT NULL PRIMARY KEY," +
-                        "created_timestamp  integer NOT NULL)";
-                    cmd.ExecuteNonQuery();
-
-                    cmd.CommandText = "insert into res(buzzword, created_timestamp) values('res'," + this.getUnixTimestamp() + ")";
-                    cmd.ExecuteNonQuery();
+                    return true;
                 }
             }
+
+            return false;
         }
 
         private void insertRes(string buzzword)
         {
-            var sqlConnectionSb = new SQLiteConnectionStringBuilder { DataSource = ":memory:" };
-            using (var cn = new SQLiteConnection(sqlConnectionSb.ToString()))
-            {
-                cn.Open();
+            var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
+            sqliteCommand.CommandText = "INSERT INTO res (buzzword, created_timestamp) VALUES(@buzzword, @created_timestamp)";
+            sqliteCommand.Parameters.Add(new SQLiteParameter("@buzzword", buzzword));
+            sqliteCommand.Parameters.Add(new SQLiteParameter("@created_timestamp", this.getUnixTimestamp()));
+            sqliteCommand.ExecuteNonQuery();
+        }
 
-                using (var cmd = new SQLiteCommand(cn))
-                {
-                    cmd.CommandText = "insert into res(buzzword, created_timestamp) values('" + buzzword + "'," + this.getUnixTimestamp() + ")";
-                    cmd.ExecuteNonQuery();
-                }
+        private void updateThread(string path, string count)
+        {
+            var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
+            var sqliteCommandForUpdate = new SQLiteCommand(this.sqliteConnection);
+            sqliteCommand.CommandText = "SELECT count(*) as cnt from threads where path=" + path;
+            var reader = sqliteCommand.ExecuteReader();
+            reader.Read();
+            if (reader.GetInt32(0) == 0)
+            {
+                sqliteCommandForUpdate.CommandText = "INSERT INTO threads (path, count) VALUES(@path, 1)";
+                sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@path", path));
             }
+            else
+            {
+                sqliteCommandForUpdate.CommandText = "update threads set count=@count where path=@path";
+                sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@path", path));
+                sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@count", count));
+            }
+            sqliteCommandForUpdate.ExecuteNonQuery();
+        }
+
+        private void deleteThread(string path)
+        {
+            var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
+            sqliteCommand.CommandText = "delete from threads where path=@path";
+            sqliteCommand.Parameters.Add(new SQLiteParameter("@path", path));
+            sqliteCommand.ExecuteNonQuery();
+        }
+
+        private SQLiteDataReader getThreads()
+        {
+            var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
+            var sqliteCommandForUpdate = new SQLiteCommand(this.sqliteConnection);
+            sqliteCommand.CommandText = "SELECT path, count from threads";
+            return sqliteCommand.ExecuteReader();
         }
 
         private uint getUnixTimestamp()
@@ -126,25 +303,121 @@ namespace WindowsFormsApp1
 
         private void button1_Click(object sender, EventArgs e)
         {
-            var threads = this.GetThreadList();
-
-            // DataGridView初期化（データクリア）
-            dataGridView1.Columns.Clear();
-            dataGridView1.Rows.Clear();
-
-            dataGridView1.ColumnCount = 3;
-            dataGridView1.Columns[0].HeaderText = "スレ名";
-            dataGridView1.Columns[1].HeaderText = "path";
-            dataGridView1.Columns[2].HeaderText = "カウント";
-            for (int i = 0; i < threads.GetLength(0); i ++)
+            Task task = Task.Run(() =>
             {
-                dataGridView1.Rows.Add(threads[i, 0], threads[i, 1], threads[i, 2]);
+                this.crawlThread();
+                var reader = this.getThreads();
+                while (reader.Read())
+                {
+                    crawlRes(reader.GetString(0), reader.GetInt32(1));
+                }
+                toolStripStatusLabel1.Text = "crawl done.";
+            });
+        }
+
+        private void crawlThread()
+        {
+            toolStripStatusLabel1.Text = "crawl thread";
+            var threads = this.GetThreadList();
+            for (int i = 0; i < threads.GetLength(0); i++)
+            {
+                var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
+                sqliteCommand.CommandText = "SELECT count(*) as cnt from threads where path=" + threads[i, 0];
+                var reader = sqliteCommand.ExecuteReader();
+                reader.Read();
+                if (reader.GetInt32(0) == 0)
+                {
+                    this.updateThread(threads[i, 0], threads[i, 1]);
+                }
+            }
+        }
+        private void crawlRes(string path, int count)
+        {
+            toolStripStatusLabel1.Text = "crawl res " + path;
+            Thread.Sleep(100);
+            int latestResNo = count;
+            var data = new WebClient().DownloadString("https://egg.5ch.net/test/read.cgi/stock/" + path + "/" + count + "-");
+            var context = BrowsingContext.New(Configuration.Default);
+            var parser = context.GetService<IHtmlParser>();
+
+            var posts = parser.ParseDocument(data).QuerySelectorAll(".post");
+            string text = "";
+            bool firstRes = true;
+            foreach (var post in posts)
+            {
+                // 1レス目はskip
+                if (firstRes)
+                {
+                    firstRes = false;
+                    continue;
+                }
+
+                var message = post.QuerySelectorAll(".message").First().Text();
+
+                // URLを削除
+                message = System.Text.RegularExpressions.Regex.Replace(
+                    message, @"^s?https?://[-_.!~*'()a-zA-Z0-9;/?:@&=+$,%#]+$@", "");
+
+                // レスアンカーを削除
+                message = System.Text.RegularExpressions.Regex.Replace(
+                    message, @">>[0-9]+?", "");
+
+                // 空白、改行を削除
+                message = message.Replace(" ", "").Replace("　", "").Replace("\r", "");
+
+                text += message;
+
+                latestResNo++;
+
+                if (latestResNo >= 1000)
+                {
+                    this.deleteThread(path);
+                    break;
+                }
+            }
+
+            if (latestResNo < 1000)
+            {
+                this.updateThread(path, latestResNo.ToString());
+            }
+
+            int maxLen = 1000;
+            string[] arrText = new String[(int)Math.Ceiling((decimal)text.Length / maxLen)];
+            for (int i = 0; (i * maxLen) < text.Length; i++)
+            {
+                int len = maxLen;
+                if (text.Length < (i + 1) * maxLen)
+                {
+                    len = text.Length - (i * maxLen);
+                }
+                arrText[i] = text.Substring(i * maxLen, len);
+            }
+
+            // 形態素解析
+            foreach (string splitText in arrText)
+            {
+                var response = this.morphologicalAnalysis(splitText);
+
+                // XMLパース
+                XDocument xdoc = XDocument.Parse(response);
+                XNamespace df = xdoc.Root.Name.Namespace;
+                var elements = from c in xdoc.Descendants(df + "word")
+                               select c;
+                //            resultTextBox.Text = elements.Count() + "\r\n";
+                foreach (var element in elements)
+                {
+                    for (var i = 0; i < int.Parse(element.Element(df + "count").Value); i++)
+                    {
+                        var buzzword = element.Element(df + "surface").Value;
+                        if (!this.isExcludeWord(buzzword))
+                        {
+                            this.insertRes(element.Element(df + "surface").Value);
+                        }
+                    }
+                }
             }
         }
 
-        ///
-        /// スレッド一覧
-        ///
         private string[,] GetThreadList()
         {
             // 全スレ一覧取得
@@ -152,7 +425,6 @@ namespace WindowsFormsApp1
             var context = BrowsingContext.New(Configuration.Default);
             var parser = context.GetService<IHtmlParser>();
             var Items = parser.ParseDocument(data).QuerySelectorAll("#trad a");
-
 
             var i = 0;
             foreach (var item in Items)
@@ -172,108 +444,19 @@ namespace WindowsFormsApp1
                 if (System.Text.RegularExpressions.Regex.IsMatch(
                     item.Text(), @"今買えばいい株.*\([0-9]+\)$"))
                 {
-                    // @todo カウントも取る
-                    threads[j, 0] = item.Text(); // これでテキストが取れる
-                    threads[j, 1] = item.GetAttribute("href"); // これでurlが取れる
+                    string[] arr = item.GetAttribute("href").Split('/');
+                    threads[j, 0] = arr[0]; // これでurlが取れる
                     Match match = Regex.Match(item.Text(), @"\(([0-9]+)\)$");
-                    threads[j, 2] = match.Value; // これでカウントが取れる
+                    threads[j, 1] = match.Groups[1].Value; // これでカウントが取れる
                     j++;
                 }
-
-                /*
-                                Regex rgx = new Regex(@"今買えばいい株.*\(([0-9]+)\)$");
-                                MatchCollection matches = rgx.Matches(item.Text());
-                                if (matches.Count > 0)
-                                {
-                                    // @todo カウントも取る
-                                    threads[j, 0] = item.Text(); // これでテキストが取れる
-                                    threads[j, 1] = item.GetAttribute("href"); // これでurlが取れる
-                                    foreach (Match match in matches)
-                                    {
-                                        threads[j, 2] = match.Value; // これでカウントが取れる
-                                    }
-                                    j++;
-                                }
-                */
-
-
-                /*
-                if (System.Text.RegularExpressions.Regex.IsMatch(
-                    item.Text(), @"今買えばいい株.*\(([0-9]+)\)$"))
-                {
-                    // @todo カウントも取る
-                    threads[j,0] = item.Text(); // これでテキストが取れる
-                    threads[j,1] = item.GetAttribute("href"); // これでurlが取れる
-                    j++;
-                }
-                */
             }
             return threads;
         }
 
         private void btnGetRes_Click(object sender, EventArgs e)
         {
-            var data = new WebClient().DownloadString("https://matsuri.5ch.net/test/read.cgi/morningcoffee/1591527265/");
-            var context = BrowsingContext.New(Configuration.Default);
-            var parser = context.GetService<IHtmlParser>();
-
-            var posts = parser.ParseDocument(data).QuerySelectorAll(".post");
-            string text = "";
-            foreach (var post in posts)
-            {
-                var message = post.QuerySelectorAll(".message").First().Text();
-                
-                // URLを削除
-                message = System.Text.RegularExpressions.Regex.Replace(
-                    message, @"@(https?://([-\w\.]+[-\w])+(:\d+)?(/([\w/_\.#-]*(\?\S+)?[^\.\s])?)?)@", "");
-
-                // レスアンカーを削除
-                message = System.Text.RegularExpressions.Regex.Replace(
-                    message, @">>[0-9]+?", "");
-
-                text += message; // これでテキストが取れる
-            }
-
-            /*
-            StringInfo si = new StringInfo(text);
-            MessageBox.Show(si.LengthInTextElements + "");
-            return;
-            */
-            int maxLen = 1000;
-            string[] arrText = new String[(int)Math.Ceiling((decimal)text.Length / maxLen)];
-            for (int i = 0; (i * maxLen) < text.Length; i ++)
-            {
-                int len = maxLen;
-                if (text.Length < (i + 1) * maxLen)
-                {
-                    len = text.Length - (i * maxLen);
-                }
-                arrText[i] = text.Substring(i * maxLen, len);
-                //                Console.WriteLine(arrText[i]);
-//                MessageBox.Show(arrText[i]);
-            }
-
-            // 形態素解析
-            foreach (string splitText in arrText)
-            {
-                var response = this.morphologicalAnalysis(splitText);
-
-                // XMLパース
-                XDocument xdoc = XDocument.Parse(response);
-                XNamespace df = xdoc.Root.Name.Namespace;
-                var elements = from c in xdoc.Descendants(df + "word")
-                               select c;
-                //            resultTextBox.Text = elements.Count() + "\r\n";
-                foreach (var element in elements)
-                {
-                    for (var i = 0; i < int.Parse(element.Element(df + "count").Value); i ++)
-                    {
-                        this.insertRes(element.Element(df + "surface").Value);
-                    }
-//                    string row = element.Element(df + "surface").Value + "(" + element.Element(df + "count").Value + ")" + "\r\n";
-                    //                resultTextBox.Text += row;
-                }
-            }
+            this.showTable();
         }
         
         /***********************************
@@ -281,7 +464,9 @@ namespace WindowsFormsApp1
          ***********************************/
         private string morphologicalAnalysis(string text)
         {
-            string postData = "results=uniq&appid=dj0zaiZpPU9XbHVHYWRiSmFDVCZzPWNvbnN1bWVyc2VjcmV0Jng9NmE-&sentence=" + text;
+            toolStripStatusLabel1.Text = "morphological analysis ...";
+            Thread.Sleep(300);
+            string postData = "results=uniq&appid=dj0zaiZpPU9XbHVHYWRiSmFDVCZzPWNvbnN1bWVyc2VjcmV0Jng9NmE-&uniq_filter=9|12|13&sentence=" + HttpUtility.UrlEncode(text, System.Text.Encoding.UTF8);
             var webClient = new WebClient();
             webClient.Encoding = System.Text.Encoding.UTF8;
             webClient.Headers["Content-Type"] = "application/x-www-form-urlencoded";
