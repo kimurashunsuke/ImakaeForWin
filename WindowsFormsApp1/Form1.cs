@@ -200,6 +200,122 @@ namespace WindowsFormsApp1
             this.initDbTable();
         }
 
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            Task task = Task.Run(() =>
+            {
+                this.crawlThread();
+                var reader = this.getThreads();
+                while (reader.Read())
+                {
+                    crawlRes(
+                        reader.GetString(0), //path
+                        reader.GetInt32(1),  //res_no
+                        reader.GetInt32(1)); //count
+                }
+            });
+        }
+
+        private void crawlThread()
+        {
+            toolStripStatusLabel1.Text = "crawl thread";
+            var threads = this.GetThreadList();
+            for (int i = 0; i < threads.GetLength(0); i++)
+            {
+                this.updateThread(threads[i, 0], threads[i, 1]);
+            }
+        }
+        private void crawlRes(string path, int resNo, int count)
+        {
+            toolStripStatusLabel1.Text = "crawl " + path;
+            Thread.Sleep(5000);
+            int latestResNo = resNo;
+            var data = new WebClient().DownloadString("https://egg.5ch.net/test/read.cgi/stock/" + path);
+            var context = BrowsingContext.New(Configuration.Default);
+            var parser = context.GetService<IHtmlParser>();
+
+            var posts = parser.ParseDocument(data).QuerySelectorAll(".post");
+            bool firstRes = true;
+            foreach (var post in posts)
+            {
+                // 既に読み込み済みのレスならスキップ
+                if (latestResNo > int.Parse(post.QuerySelectorAll(".number").First().Text())) {
+                    continue;
+                }
+
+                var message = post.QuerySelectorAll(".message").First().Text();
+
+                // URLを削除
+                message = System.Text.RegularExpressions.Regex.Replace(
+                    message, @"^s?https?://[-_.!~*'()a-zA-Z0-9;/?:@&=+$,%#]+$@", "");
+
+                // レスアンカーを削除
+                message = System.Text.RegularExpressions.Regex.Replace(
+                    message, @">>[0-9]+?", "");
+
+                // 空白、改行を削除
+                message = message.Replace(" ", "").Replace("　", "").Replace("\r", "");
+
+                var words = this.morphologicalAnalysis(message);
+                foreach (var buzzword in words)
+                {
+                    if (!this.isExcludeWord(buzzword))
+                    {
+                        this.insertRes(buzzword);
+                    }
+                }
+
+                latestResNo++;
+
+                if (latestResNo >= 1000)
+                {
+                    break;
+                }
+            }
+
+            var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
+            sqliteCommand.CommandText = "update threads set res_no=@res_no where path=@path";
+            sqliteCommand.Parameters.Add(new SQLiteParameter("@path", path));
+            sqliteCommand.Parameters.Add(new SQLiteParameter("@res_no", latestResNo.ToString()));
+            sqliteCommand.ExecuteNonQuery();
+        }
+
+        private string[,] GetThreadList()
+        {
+            // 全スレ一覧取得
+            var data = new WebClient().DownloadString("https://egg.5ch.net/stock/subback.html");
+            var context = BrowsingContext.New(Configuration.Default);
+            var parser = context.GetService<IHtmlParser>();
+            var Items = parser.ParseDocument(data).QuerySelectorAll("#trad a");
+
+            var i = 0;
+            foreach (var item in Items)
+            {
+                if (System.Text.RegularExpressions.Regex.IsMatch(
+                    item.Text(), @"今買えばいい株.*\(([0-9]+)\)$"))
+                {
+                    i++;
+                }
+            }
+
+            string[,] threads = new string[i, 3];
+
+            var j = 0;
+            foreach (var item in Items)
+            {
+                if (System.Text.RegularExpressions.Regex.IsMatch(
+                    item.Text(), @"今買えばいい株.*\([0-9]+\)$"))
+                {
+                    string[] arr = item.GetAttribute("href").Split('/');
+                    threads[j, 0] = arr[0]; // これでurlが取れる
+                    Match match = Regex.Match(item.Text(), @"\(([0-9]+)\)$");
+                    threads[j, 1] = match.Groups[1].Value; // これでカウントが取れる
+                    j++;
+                }
+            }
+            return threads;
+        }
         private void initDbTable()
         {
             var sqlConnectionSb = new SQLiteConnectionStringBuilder { DataSource = ":memory:" };
@@ -209,6 +325,7 @@ namespace WindowsFormsApp1
             //テーブル作成
             sqliteCommand.CommandText = "CREATE TABLE IF NOT EXISTS threads(" +
                 "path text NOT NULL primary key," +
+                "res_no integer NOT NULL," +
                 "count INTEGER NOT NULL)";
             sqliteCommand.ExecuteNonQuery();
             sqliteCommand.CommandText = "CREATE TABLE IF NOT EXISTS res(" +
@@ -279,31 +396,22 @@ namespace WindowsFormsApp1
             reader.Read();
             if (reader.GetInt32(0) == 0)
             {
-                sqliteCommandForUpdate.CommandText = "INSERT INTO threads (path, count) VALUES(@path, 1)";
-                sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@path", path));
+                sqliteCommandForUpdate.CommandText = "INSERT INTO threads (path, count, res_no) VALUES(@path, @count, 2)";
             }
             else
             {
                 sqliteCommandForUpdate.CommandText = "update threads set count=@count where path=@path";
-                sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@path", path));
-                sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@count", count));
             }
+            sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@path", path));
+            sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@count", count));
             sqliteCommandForUpdate.ExecuteNonQuery();
-        }
-
-        private void deleteThread(string path)
-        {
-            var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
-            sqliteCommand.CommandText = "delete from threads where path=@path";
-            sqliteCommand.Parameters.Add(new SQLiteParameter("@path", path));
-            sqliteCommand.ExecuteNonQuery();
         }
 
         private SQLiteDataReader getThreads()
         {
             var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
             var sqliteCommandForUpdate = new SQLiteCommand(this.sqliteConnection);
-            sqliteCommand.CommandText = "SELECT path, count from threads";
+            sqliteCommand.CommandText = "SELECT * from threads where count > res_no and res_no < 1000";
             return sqliteCommand.ExecuteReader();
         }
 
@@ -313,129 +421,6 @@ namespace WindowsFormsApp1
             return (uint)timespan2.TotalSeconds;
         }
 
-        private void button1_Click(object sender, EventArgs e)
-        {
-            Task task = Task.Run(() =>
-            {
-                this.crawlThread();
-                var reader = this.getThreads();
-                while (reader.Read())
-                {
-                    crawlRes(reader.GetString(0), reader.GetInt32(1));
-                }
-                toolStripStatusLabel1.Text = "crawl done.";
-            });
-        }
-
-        private void crawlThread()
-        {
-            toolStripStatusLabel1.Text = "crawl thread";
-            var threads = this.GetThreadList();
-            for (int i = 0; i < threads.GetLength(0); i++)
-            {
-                var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
-                sqliteCommand.CommandText = "SELECT count(*) as cnt from threads where path=" + threads[i, 0];
-                var reader = sqliteCommand.ExecuteReader();
-                reader.Read();
-                if (reader.GetInt32(0) == 0)
-                {
-                    this.updateThread(threads[i, 0], threads[i, 1]);
-                }
-            }
-        }
-        private void crawlRes(string path, int count)
-        {
-            toolStripStatusLabel1.Text = "crawl res " + path;
-            Thread.Sleep(1000);
-            int latestResNo = count;
-            var data = new WebClient().DownloadString("https://egg.5ch.net/test/read.cgi/stock/" + path + "/" + count + "-");
-            var context = BrowsingContext.New(Configuration.Default);
-            var parser = context.GetService<IHtmlParser>();
-
-            var posts = parser.ParseDocument(data).QuerySelectorAll(".post");
-            bool firstRes = true;
-            foreach (var post in posts)
-            {
-                // 1レス目はskip
-                if (firstRes)
-                {
-                    firstRes = false;
-                    continue;
-                }
-
-                var message = post.QuerySelectorAll(".message").First().Text();
-
-                // URLを削除
-                message = System.Text.RegularExpressions.Regex.Replace(
-                    message, @"^s?https?://[-_.!~*'()a-zA-Z0-9;/?:@&=+$,%#]+$@", "");
-
-                // レスアンカーを削除
-                message = System.Text.RegularExpressions.Regex.Replace(
-                    message, @">>[0-9]+?", "");
-
-                // 空白、改行を削除
-                message = message.Replace(" ", "").Replace("　", "").Replace("\r", "");
-
-                // バズワードをDBに挿入
-                var words = this.morphologicalAnalysis(message);
-                foreach (var buzzword in words)
-                {
-                    if (!this.isExcludeWord(buzzword))
-                    {
-                        this.insertRes(buzzword);
-                    }
-                }
-
-                latestResNo++;
-
-                if (latestResNo >= 1000)
-                {
-                    this.deleteThread(path);
-                    break;
-                }
-            }
-
-            if (latestResNo < 1000)
-            {
-                this.updateThread(path, latestResNo.ToString());
-            }
-        }
-
-        private string[,] GetThreadList()
-        {
-            // 全スレ一覧取得
-            var data = new WebClient().DownloadString("https://egg.5ch.net/stock/subback.html");
-            var context = BrowsingContext.New(Configuration.Default);
-            var parser = context.GetService<IHtmlParser>();
-            var Items = parser.ParseDocument(data).QuerySelectorAll("#trad a");
-
-            var i = 0;
-            foreach (var item in Items)
-            {
-                if (System.Text.RegularExpressions.Regex.IsMatch(
-                    item.Text(), @"今買えばいい株.*\(([0-9]+)\)$"))
-                {
-                    i++;
-                }
-            }
-
-            string[,] threads = new string[i,3];
-
-            var j = 0;
-            foreach (var item in Items)
-            {
-                if (System.Text.RegularExpressions.Regex.IsMatch(
-                    item.Text(), @"今買えばいい株.*\([0-9]+\)$"))
-                {
-                    string[] arr = item.GetAttribute("href").Split('/');
-                    threads[j, 0] = arr[0]; // これでurlが取れる
-                    Match match = Regex.Match(item.Text(), @"\(([0-9]+)\)$");
-                    threads[j, 1] = match.Groups[1].Value; // これでカウントが取れる
-                    j++;
-                }
-            }
-            return threads;
-        }
 
         private void btnGetRes_Click(object sender, EventArgs e)
         {
