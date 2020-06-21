@@ -36,3 +36,12 @@ C:\Users\user\Source\Repos\ImakaeForWin\WindowsFormsApp1\obj\Debug\WindowsFormsA
 C:\Users\user\Source\Repos\ImakaeForWin\WindowsFormsApp1\obj\Debug\WindowsFormsApp1.csproj.CopyComplete
 C:\Users\user\Source\Repos\ImakaeForWin\WindowsFormsApp1\obj\Debug\WindowsFormsApp1.exe
 C:\Users\user\Source\Repos\ImakaeForWin\WindowsFormsApp1\obj\Debug\WindowsFormsApp1.pdb
+C:\Users\user\Source\Repos\ImakaeForWin\WindowsFormsApp1\bin\Debug\ICSharpCode.SharpZipLib.dll
+C:\Users\user\Source\Repos\ImakaeForWin\WindowsFormsApp1\bin\Debug\J2N.dll
+C:\Users\user\Source\Repos\ImakaeForWin\WindowsFormsApp1\bin\Debug\Lucene.Net.Analysis.Common.dll
+C:\Users\user\Source\Repos\ImakaeForWin\WindowsFormsApp1\bin\Debug\Lucene.Net.Analysis.Kuromoji.dll
+C:\Users\user\Source\Repos\ImakaeForWin\WindowsFormsApp1\bin\Debug\Lucene.Net.dll
+C:\Users\user\Source\Repos\ImakaeForWin\WindowsFormsApp1\bin\Debug\J2N.xml
+C:\Users\user\Source\Repos\ImakaeForWin\WindowsFormsApp1\bin\Debug\Lucene.Net.xml
+C:\Users\user\Source\Repos\ImakaeForWin\WindowsFormsApp1\bin\Debug\Lucene.Net.Analysis.Common.xml
+C:\Users\user\Source\Repos\ImakaeForWin\WindowsFormsApp1\bin\Debug\Lucene.Net.Analysis.Kuromoji.xml

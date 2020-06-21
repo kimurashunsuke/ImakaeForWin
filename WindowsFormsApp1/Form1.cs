@@ -21,6 +21,12 @@ using System.Text.RegularExpressions;
 using System.Data.SQLite;
 using AngleSharp.Text;
 using System.Web;
+using AngleSharp.Common;
+using Lucene.Net.Analysis;
+using Lucene.Net.Analysis.Ja;
+using Lucene.Net.Analysis.Ja.Dict;
+using Lucene.Net.Analysis.Ja.TokenAttributes;
+using Lucene.Net.Analysis.TokenAttributes;
 
 /***************************************
  * 
@@ -39,12 +45,16 @@ using System.Web;
  * １日５万件までなので連続多用注意
  * -> アプリ内で形態素解析したい
  * -> ローカルでやれるようになると
+ *   https://www.nuget.org/packages/Lucene.Net.Analysis.Kuromoji/ <- これを使った
  * 　　・リクエスト数を気にしなくてよくなる
  * 　　　-> レスごとに形態素解析できる
  * 　　　  -> 投稿日でレスが登録できるようになる
  * 　　　    -> アーカイブの扱いに便利
  * 　　・速度向上する
  * 　　・sleep入れなくて良くなる（＝速度向上する）
+ * 　　  -> 超高速になったけど403で弾かれた
+ * 　　    -> proxy使えるようにする
+ * 　　    -> sleep間隔を広げる（3秒ぐらい？）
  * 　　・ユーザ辞書が使えるようになる
  * 　　  -> 銘柄コード、銘柄名で分類できる
  * 
@@ -90,6 +100,8 @@ using System.Web;
  *   -> 実装した
  *   
  * タイマ処理でクローリング、テーブル表示処理をそれぞれバックグラウンドで行いたい
+ * 
+ * テーブルセルを選択するとコピーできる機能がほしい
  * 
  ***************************************/
 
@@ -334,14 +346,13 @@ namespace WindowsFormsApp1
         private void crawlRes(string path, int count)
         {
             toolStripStatusLabel1.Text = "crawl res " + path;
-            Thread.Sleep(100);
+            Thread.Sleep(1000);
             int latestResNo = count;
             var data = new WebClient().DownloadString("https://egg.5ch.net/test/read.cgi/stock/" + path + "/" + count + "-");
             var context = BrowsingContext.New(Configuration.Default);
             var parser = context.GetService<IHtmlParser>();
 
             var posts = parser.ParseDocument(data).QuerySelectorAll(".post");
-            string text = "";
             bool firstRes = true;
             foreach (var post in posts)
             {
@@ -365,7 +376,15 @@ namespace WindowsFormsApp1
                 // 空白、改行を削除
                 message = message.Replace(" ", "").Replace("　", "").Replace("\r", "");
 
-                text += message;
+                // バズワードをDBに挿入
+                var words = this.morphologicalAnalysis(message);
+                foreach (var buzzword in words)
+                {
+                    if (!this.isExcludeWord(buzzword))
+                    {
+                        this.insertRes(buzzword);
+                    }
+                }
 
                 latestResNo++;
 
@@ -379,42 +398,6 @@ namespace WindowsFormsApp1
             if (latestResNo < 1000)
             {
                 this.updateThread(path, latestResNo.ToString());
-            }
-
-            int maxLen = 1000;
-            string[] arrText = new String[(int)Math.Ceiling((decimal)text.Length / maxLen)];
-            for (int i = 0; (i * maxLen) < text.Length; i++)
-            {
-                int len = maxLen;
-                if (text.Length < (i + 1) * maxLen)
-                {
-                    len = text.Length - (i * maxLen);
-                }
-                arrText[i] = text.Substring(i * maxLen, len);
-            }
-
-            // 形態素解析
-            foreach (string splitText in arrText)
-            {
-                var response = this.morphologicalAnalysis(splitText);
-
-                // XMLパース
-                XDocument xdoc = XDocument.Parse(response);
-                XNamespace df = xdoc.Root.Name.Namespace;
-                var elements = from c in xdoc.Descendants(df + "word")
-                               select c;
-                //            resultTextBox.Text = elements.Count() + "\r\n";
-                foreach (var element in elements)
-                {
-                    for (var i = 0; i < int.Parse(element.Element(df + "count").Value); i++)
-                    {
-                        var buzzword = element.Element(df + "surface").Value;
-                        if (!this.isExcludeWord(buzzword))
-                        {
-                            this.insertRes(element.Element(df + "surface").Value);
-                        }
-                    }
-                }
             }
         }
 
@@ -462,16 +445,25 @@ namespace WindowsFormsApp1
         /***********************************
          * 形態素解析
          ***********************************/
-        private string morphologicalAnalysis(string text)
+        private string[] morphologicalAnalysis(string text)
         {
-            toolStripStatusLabel1.Text = "morphological analysis ...";
-            Thread.Sleep(300);
-            string postData = "results=uniq&appid=dj0zaiZpPU9XbHVHYWRiSmFDVCZzPWNvbnN1bWVyc2VjcmV0Jng9NmE-&uniq_filter=9|12|13&sentence=" + HttpUtility.UrlEncode(text, System.Text.Encoding.UTF8);
-            var webClient = new WebClient();
-            webClient.Encoding = System.Text.Encoding.UTF8;
-            webClient.Headers["Content-Type"] = "application/x-www-form-urlencoded";
-            var xml = webClient.UploadString("https://jlp.yahooapis.jp/MAService/V1/parse", "POST", postData);
-            return xml;
+            string[] keywords = { };
+            var reader = new StringReader(text);
+            Tokenizer tokenizer = new JapaneseTokenizer(reader, null, false, JapaneseTokenizerMode.NORMAL);
+            var tokenStreamComponents = new TokenStreamComponents(tokenizer, tokenizer);
+            using (var tokenStream = tokenStreamComponents.TokenStream)
+            {
+                // note:処理の実行前にResetを実行する必要がある
+                tokenStream.Reset();
+
+                while (tokenStream.IncrementToken())
+                {
+                    Array.Resize(ref keywords, keywords.Length + 1);
+                    keywords[keywords.Length - 1] = tokenStream.GetAttribute<ICharTermAttribute>().ToString();
+                }
+            }
+
+            return keywords;
         }
     }
 }

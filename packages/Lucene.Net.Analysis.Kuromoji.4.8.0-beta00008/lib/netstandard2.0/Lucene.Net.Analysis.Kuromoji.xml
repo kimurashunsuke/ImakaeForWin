@@ -1,0 +1,893 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Lucene.Net.Analysis.Kuromoji</name>
+    </assembly>
+    <members>
+        <member name="T:Lucene.Net.Analysis.Ja.Dict.BinaryDictionary">
+            <summary>
+            Base class for a binary-encoded in-memory dictionary.
+            </summary>
+        </member>
+        <member name="F:Lucene.Net.Analysis.Ja.Dict.BinaryDictionary.HAS_BASEFORM">
+            <summary>flag that the entry has baseform data. otherwise its not inflected (same as surface form)</summary>
+        </member>
+        <member name="F:Lucene.Net.Analysis.Ja.Dict.BinaryDictionary.HAS_READING">
+            <summary>flag that the entry has reading data. otherwise reading is surface form converted to katakana</summary>
+        </member>
+        <member name="F:Lucene.Net.Analysis.Ja.Dict.BinaryDictionary.HAS_PRONUNCIATION">
+            <summary>flag that the entry has pronunciation data. otherwise pronunciation is the reading</summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.Dict.CharacterDefinition">
+            <summary>
+            Character category data.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.Dict.ConnectionCosts">
+            <summary>
+            n-gram connection cost data
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.Dict.IDictionary">
+            <summary>
+            Dictionary interface for retrieving morphological data
+            by id.
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Dict.IDictionary.GetLeftId(System.Int32)">
+            <summary>
+            Get left id of specified word.
+            </summary>
+            <param name="wordId">Word ID of token.</param>
+            <returns>Left id.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Dict.IDictionary.GetRightId(System.Int32)">
+            <summary>
+            Get right id of specified word.
+            </summary>
+            <param name="wordId">Word ID of token.</param>
+            <returns>Right id.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Dict.IDictionary.GetWordCost(System.Int32)">
+            <summary>
+            Get word cost of specified word
+            </summary>
+            <param name="wordId">Word ID of token.</param>
+            <returns>Word's cost.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Dict.IDictionary.GetPartOfSpeech(System.Int32)">
+            <summary>
+            Get Part-Of-Speech of tokens
+            </summary>
+            <param name="wordId">Word ID of token.</param>
+            <returns>Part-Of-Speech of the token.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Dict.IDictionary.GetReading(System.Int32,System.Char[],System.Int32,System.Int32)">
+            <summary>
+            Get reading of tokens.
+            </summary>
+            <param name="wordId">Word ID of token.</param>
+            <param name="surface"></param>
+            <param name="off"></param>
+            <param name="len"></param>
+            <returns>Reading of the token.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Dict.IDictionary.GetBaseForm(System.Int32,System.Char[],System.Int32,System.Int32)">
+            <summary>
+            Get base form of word.
+            </summary>
+            <param name="wordId">Word ID of token.</param>
+            <param name="surface"></param>
+            <param name="off"></param>
+            <param name="len"></param>
+            <returns>Base form (only different for inflected words, otherwise null).</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Dict.IDictionary.GetPronunciation(System.Int32,System.Char[],System.Int32,System.Int32)">
+            <summary>
+            Get pronunciation of tokens
+            </summary>
+            <param name="wordId">Word ID of token.</param>
+            <param name="surface"></param>
+            <param name="off"></param>
+            <param name="len"></param>
+            <returns>Pronunciation of the token.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Dict.IDictionary.GetInflectionType(System.Int32)">
+            <summary>
+            Get inflection type of tokens.
+            </summary>
+            <param name="wordId">Word ID of token.</param>
+            <returns>Inflection type, or null.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Dict.IDictionary.GetInflectionForm(System.Int32)">
+            <summary>
+            Get inflection form of tokens.
+            </summary>
+            <param name="wordId">Word ID of token.</param>
+            <returns>Inflection form, or null.</returns>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.Dict.TokenInfoDictionary">
+            <summary>
+            Binary dictionary implementation for a known-word dictionary model:
+            Words are encoded into an FST mapping to a list of wordIDs.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.Dict.TokenInfoFST">
+            <summary>
+            Thin wrapper around an FST with root-arc caching for Japanese.
+            <para/>
+            Depending upon fasterButMoreRam, either just kana (191 arcs),
+            or kana and han (28,607 arcs) are cached. The latter offers
+            additional performance at the cost of more RAM.
+            </summary>
+        </member>
+        <member name="P:Lucene.Net.Analysis.Ja.Dict.TokenInfoFST.InternalFST">
+            <summary>
+            for testing only
+            <para/>
+            @lucene.internal 
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.Dict.UnknownDictionary">
+            <summary>
+            Dictionary for unknown-word handling.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.Dict.UserDictionary">
+            <summary>
+            Class for building a User Dictionary.
+            This class allows for custom segmentation of phrases.
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Dict.UserDictionary.Lookup(System.Char[],System.Int32,System.Int32)">
+            <summary>
+            Lookup words in text.
+            </summary>
+            <param name="chars">Text.</param>
+            <param name="off">Offset into text.</param>
+            <param name="len">Length of text.</param>
+            <returns>Array of {wordId, position, length}.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Dict.UserDictionary.ToIndexArray(System.Collections.Generic.IDictionary{System.Int32,System.Int32[]})">
+            <summary>
+            Convert Map of index and wordIdAndLength to array of {wordId, index, length}
+            </summary>
+            <param name="input"></param>
+            <returns>Array of {wordId, index, length}.</returns>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.GraphvizFormatter">
+            <summary>
+            Outputs the dot (graphviz) string for the viterbi lattice.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapaneseAnalyzer">
+            <summary>
+            Analyzer for Japanese that uses morphological analysis.
+            </summary>
+            <seealso cref="T:Lucene.Net.Analysis.Ja.JapaneseTokenizer"/>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapaneseAnalyzer.DefaultSetHolder">
+            <summary>
+            Atomically loads DEFAULT_STOP_SET, DEFAULT_STOP_TAGS in a lazy fashion once the 
+            outer class accesses the static final set the first time.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapaneseBaseFormFilter">
+            <summary>
+            Replaces term text with the <see cref="T:Lucene.Net.Analysis.Ja.TokenAttributes.IBaseFormAttribute"/>.
+            <para/>
+            This acts as a lemmatizer for verbs and adjectives.
+            To prevent terms from being stemmed use an instance of
+            <see cref="T:Lucene.Net.Analysis.Miscellaneous.SetKeywordMarkerFilter"/> or a custom <see cref="T:Lucene.Net.Analysis.TokenFilter"/> that sets
+            the <see cref="T:Lucene.Net.Analysis.TokenAttributes.IKeywordAttribute"/> before this <see cref="T:Lucene.Net.Analysis.TokenStream"/>.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapaneseBaseFormFilterFactory">
+            <summary>
+            Factory for <see cref="T:Lucene.Net.Analysis.Ja.JapaneseBaseFormFilter"/>.
+            <code>
+            &lt;fieldType name="text_ja" class="solr.TextField"&gt;
+              &lt;analyzer&gt;
+                &lt;tokenizer class="solr.JapaneseTokenizerFactory"/&gt;
+                &lt;filter class="solr.JapaneseBaseFormFilterFactory"/&gt;
+              &lt;/analyzer&gt;
+            &lt;/fieldType&gt;
+            </code>
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseBaseFormFilterFactory.#ctor(System.Collections.Generic.IDictionary{System.String,System.String})">
+            <summary>Creates a new <see cref="T:Lucene.Net.Analysis.Ja.JapaneseBaseFormFilterFactory"/></summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter">
+            <summary>
+            Normalizes Japanese horizontal iteration marks (odoriji) to their expanded form.
+            </summary>
+            <remarks>
+            Sequences of iteration marks are supported.  In case an illegal sequence of iteration
+            marks is encountered, the implementation emits the illegal source character as-is
+            without considering its script.  For example, with input "&#63;&#12445;", we get
+            "&#63;&#63;" even though "&#63;" isn't hiragana.
+            <para/>
+            Note that a full stop punctuation character "&#x3002;" (U+3002) can not be iterated
+            (see below). Iteration marks themselves can be emitted in case they are illegal,
+            i.e. if they go back past the beginning of the character stream.
+            <para/>
+            The implementation buffers input until a full stop punctuation character (U+3002)
+            or EOF is reached in order to not keep a copy of the character stream in memory.
+            Vertical iteration marks, which are even rarer than horizontal iteration marks in
+            contemporary Japanese, are unsupported.
+            </remarks>
+        </member>
+        <member name="F:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.NORMALIZE_KANJI_DEFAULT">
+            <summary>Normalize kanji iteration marks by default</summary>
+        </member>
+        <member name="F:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.NORMALIZE_KANA_DEFAULT">
+            <summary>Normalize kana iteration marks by default</summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.#ctor(System.IO.TextReader)">
+            <summary>
+            Constructor. Normalizes both kanji and kana iteration marks by default.
+            </summary>
+            <param name="input">Char stream.</param>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.#ctor(System.IO.TextReader,System.Boolean,System.Boolean)">
+            <summary>
+            Constructor
+            </summary>
+            <param name="input">Char stream.</param>
+            <param name="normalizeKanji">Indicates whether kanji iteration marks should be normalized.</param>
+            <param name="normalizeKana">Indicates whether kana iteration marks should be normalized.</param>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.Read(System.Char[],System.Int32,System.Int32)">
+            <summary>
+            Reads a specified maximum number of characters from the current reader and writes the data to a buffer, beginning at the specified index.
+            </summary>
+            <param name="buffer">
+            When this method returns, contains the specified character array with the values between index and (index + count - 1) 
+            replaced by the characters read from the current source.</param>
+            <param name="offset">
+            The position in buffer at which to begin writing.
+            </param>
+            <param name="length">
+            The maximum number of characters to read. If the end of the reader is reached before the specified number of characters is 
+            read into the buffer, the method returns.
+            </param>
+            <returns>
+            The number of characters that have been read. The number will be less than or equal to count, depending on whether the data is 
+            available within the reader. This method returns 0 (zero) if it is called when no more characters are left to read.
+            </returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.Read">
+            <summary>
+            Reads the next character from the text reader and advances the character position by one character.
+            </summary>
+            <returns>The next character from the text reader, or -1 if no more characters are available.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.NormalizeIterationMark(System.Char)">
+            <summary>
+            Normalizes the iteration mark character <paramref name="c"/>
+            </summary>
+            <param name="c">Iteration mark character to normalize.</param>
+            <returns>Normalized iteration mark.</returns>
+            <exception cref="T:System.IO.IOException">If there is a low-level I/O error.</exception>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.NextIterationMarkSpanSize">
+            <summary>
+            Finds the number of subsequent next iteration marks
+            </summary>
+            <returns>Number of iteration marks starting at the current buffer position.</returns>
+            <exception cref="T:System.IO.IOException">If there is a low-level I/O error.</exception>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.SourceCharacter(System.Int32,System.Int32)">
+            <summary>
+            Returns the source character for a given position and iteration mark span size.
+            </summary>
+            <param name="position">Buffer position (should not exceed bufferPosition).</param>
+            <param name="spanSize">Iteration mark span size.</param>
+            <returns>Source character.</returns>
+            <exception cref="T:System.IO.IOException">If there is a low-level I/O error.</exception>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.Normalize(System.Char,System.Char)">
+            <summary>
+            Normalize a character.
+            </summary>
+            <param name="c">Character to normalize.</param>
+            <param name="m">Repetition mark referring to <paramref name="c"/>.</param>
+            <returns>Normalized character - return c on illegal iteration marks.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.NormalizedHiragana(System.Char,System.Char)">
+            <summary>
+            Normalize hiragana character.
+            </summary>
+            <param name="c">Hiragana character.</param>
+            <param name="m">Repetition mark referring to <paramref name="c"/>.</param>
+            <returns>Normalized character - return <paramref name="c"/> on illegal iteration marks.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.NormalizedKatakana(System.Char,System.Char)">
+            <summary>
+            Normalize katakana character.
+            </summary>
+            <param name="c">Katakana character.</param>
+            <param name="m">Repetition mark referring to <paramref name="c"/>.</param>
+            <returns>Normalized character - return <paramref name="c"/> on illegal iteration marks.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.IsIterationMark(System.Char)">
+            <summary>
+            Iteration mark character predicate.
+            </summary>
+            <param name="c">Character to test.</param>
+            <returns><c>true</c> if <paramref name="c"/> is an iteration mark character.  Otherwise <c>false</c>.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.IsHiraganaIterationMark(System.Char)">
+            <summary>
+            Hiragana iteration mark character predicate.
+            </summary>
+            <param name="c">Character to test.</param>
+            <returns><c>true</c> if <paramref name="c"/> is a hiragana iteration mark character.  Otherwise <c>false</c>.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.IsKatakanaIterationMark(System.Char)">
+            <summary>
+            Katakana iteration mark character predicate.
+            </summary>
+            <param name="c">Character to test.</param>
+            <returns><c>true</c> if c is a katakana iteration mark character.  Otherwise <c>false</c>.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.IsKanjiIterationMark(System.Char)">
+            <summary>
+            Kanji iteration mark character predicate.
+            </summary>
+            <param name="c">Character to test.</param>
+            <returns><c>true</c> if c is a kanji iteration mark character.  Otherwise <c>false</c>.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.LookupHiraganaDakuten(System.Char)">
+            <summary>
+            Look up hiragana dakuten.
+            </summary>
+            <param name="c">Character to look up.</param>
+            <returns>Hiragana dakuten variant of c or c itself if no dakuten variant exists.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.LookupKatakanaDakuten(System.Char)">
+            <summary>
+            Look up katakana dakuten. Only full-width katakana are supported.
+            </summary>
+            <param name="c">Character to look up.</param>
+            <returns>Katakana dakuten variant of <paramref name="c"/> or <paramref name="c"/> itself if no dakuten variant exists.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.IsHiraganaDakuten(System.Char)">
+            <summary>
+            Hiragana dakuten predicate.
+            </summary>
+            <param name="c">Character to check.</param>
+            <returns><c>true</c> if c is a hiragana dakuten and otherwise <c>false</c>.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.IsKatakanaDakuten(System.Char)">
+            <summary>
+            Katakana dakuten predicate.
+            </summary>
+            <param name="c">Character to check.</param>
+            <returns><c>true</c> if c is a hiragana dakuten and otherwise <c>false</c>.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.Lookup(System.Char,System.Char[],System.Char)">
+            <summary>
+            Looks up a character in dakuten map and returns the dakuten variant if it exists.
+            Otherwise return the character being looked up itself.
+            </summary>
+            <param name="c">Character to look up.</param>
+            <param name="map">Dakuten map.</param>
+            <param name="offset">Code point offset from <paramref name="c"/>.</param>
+            <returns>Mapped character or <paramref name="c"/> if no mapping exists.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter.Inside(System.Char,System.Char[],System.Char)">
+            <summary>
+            Predicate indicating if the lookup character is within dakuten map range.
+            </summary>
+            <param name="c">Character to look up.</param>
+            <param name="map">Dakuten map.</param>
+            <param name="offset">Code point offset from <paramref name="c"/>.</param>
+            <returns><c>true</c> if <paramref name="c"/> is mapped by map and otherwise <c>false</c>.</returns>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilterFactory">
+            <summary>
+            Factory for <see cref="T:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilter"/>.
+            <code>
+            &lt;fieldType name="text_ja" class="solr.TextField" positionIncrementGap="100" autoGeneratePhraseQueries="false"&gt;
+              &lt;analyzer&gt;
+                &lt;charFilter class="solr.JapaneseIterationMarkCharFilterFactory normalizeKanji="true" normalizeKana="true"/&gt;
+                &lt;tokenizer class="solr.JapaneseTokenizerFactory"/&gt;
+              &lt;/analyzer&gt;
+            &lt;/fieldType&gt;
+            </code>
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilterFactory.#ctor(System.Collections.Generic.IDictionary{System.String,System.String})">
+            <summary>Creates a new <see cref="T:Lucene.Net.Analysis.Ja.JapaneseIterationMarkCharFilterFactory"/></summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapaneseKatakanaStemFilter">
+            <summary>
+            A <see cref="T:Lucene.Net.Analysis.TokenFilter"/> that normalizes common katakana spelling variations
+            ending in a long sound character by removing this character (U+30FC).  Only
+            katakana words longer than a minimum length are stemmed (default is four).
+            </summary>
+            <remarks>
+            Note that only full-width katakana characters are supported.  Please use a
+            <see cref="T:Lucene.Net.Analysis.Cjk.CJKWidthFilter"/> to convert half-width
+            katakana to full-width before using this filter.
+            <para/>
+            In order to prevent terms from being stemmed, use an instance of
+            <see cref="T:Lucene.Net.Analysis.Miscellaneous.SetKeywordMarkerFilter"/>
+            or a custom <see cref="T:Lucene.Net.Analysis.TokenFilter"/> that sets the <see cref="T:Lucene.Net.Analysis.TokenAttributes.IKeywordAttribute"/>
+            before this <see cref="T:Lucene.Net.Analysis.TokenStream"/>.
+            </remarks>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapaneseKatakanaStemFilterFactory">
+            <summary>
+            Factory for <see cref="T:Lucene.Net.Analysis.Ja.JapaneseKatakanaStemFilter"/>.
+            <code>
+            &lt;fieldType name="text_ja" class="solr.TextField"&gt;
+              &lt;analyzer&gt;
+                &lt;tokenizer class="solr.JapaneseTokenizerFactory"/&gt;
+                &lt;filter class="solr.JapaneseKatakanaStemFilterFactory"
+                        minimumLength="4"/&gt;
+              &lt;/analyzer&gt;
+            &lt;/fieldType&gt;
+            </code>
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseKatakanaStemFilterFactory.#ctor(System.Collections.Generic.IDictionary{System.String,System.String})">
+            <summary>Creates a new <see cref="T:Lucene.Net.Analysis.Ja.JapaneseKatakanaStemFilterFactory"/></summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapanesePartOfSpeechStopFilter">
+            <summary>
+            Removes tokens that match a set of part-of-speech tags.
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapanesePartOfSpeechStopFilter.#ctor(Lucene.Net.Util.LuceneVersion,Lucene.Net.Analysis.TokenStream,System.Collections.Generic.ISet{System.String})">
+            <summary>
+            Create a new <see cref="T:Lucene.Net.Analysis.Ja.JapanesePartOfSpeechStopFilter"/>.
+            </summary>
+            <param name="version">The Lucene match version.</param>
+            <param name="input">The <see cref="T:Lucene.Net.Analysis.TokenStream"/> to consume.</param>
+            <param name="stopTags">The part-of-speech tags that should be removed.</param>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapanesePartOfSpeechStopFilterFactory">
+            <summary>
+            Factory for <see cref="T:Lucene.Net.Analysis.Ja.JapanesePartOfSpeechStopFilter"/>.
+            <code>
+            &lt;fieldType name="text_ja" class="solr.TextField"&gt;
+              &lt;analyzer&gt;
+                &lt;tokenizer class="solr.JapaneseTokenizerFactory"/&gt;
+                &lt;filter class="solr.JapanesePartOfSpeechStopFilterFactory"
+                        tags="stopTags.txt" 
+                        enablePositionIncrements="true"/&gt;
+              &lt;/analyzer&gt;
+            &lt;/fieldType&gt;
+            </code>
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapanesePartOfSpeechStopFilterFactory.#ctor(System.Collections.Generic.IDictionary{System.String,System.String})">
+            <summary>Creates a new JapanesePartOfSpeechStopFilterFactory</summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapaneseReadingFormFilter">
+            <summary>
+            A <see cref="T:Lucene.Net.Analysis.TokenFilter"/> that replaces the term
+            attribute with the reading of a token in either katakana or romaji form.
+            The default reading form is katakana.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapaneseReadingFormFilterFactory">
+            <summary>
+            Factory for <see cref="T:Lucene.Net.Analysis.Ja.JapaneseReadingFormFilter"/>.
+            <code>
+            &lt;fieldType name="text_ja" class="solr.TextField"&gt;
+              &lt;analyzer&gt;
+                &lt;tokenizer class="solr.JapaneseTokenizerFactory"/&gt;
+                &lt;filter class="solr.JapaneseReadingFormFilterFactory"
+                        useRomaji="false"/&gt;
+              &lt;/analyzer&gt;
+            &lt;/fieldType&gt;
+            </code>
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseReadingFormFilterFactory.#ctor(System.Collections.Generic.IDictionary{System.String,System.String})">
+            <summary>Creates a new <see cref="T:Lucene.Net.Analysis.Ja.JapaneseReadingFormFilterFactory"/>.</summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapaneseTokenizer">
+            <summary>
+            Tokenizer for Japanese that uses morphological analysis.
+            </summary>
+            <remarks>
+            This tokenizer sets a number of additional attributes:
+            <list type="bullet">
+                <item><description><see cref="T:Lucene.Net.Analysis.Ja.TokenAttributes.IBaseFormAttribute"/> containing base form for inflected adjectives and verbs.</description></item>
+                <item><description><see cref="T:Lucene.Net.Analysis.Ja.TokenAttributes.IPartOfSpeechAttribute"/> containing part-of-speech.</description></item>
+                <item><description><see cref="T:Lucene.Net.Analysis.Ja.TokenAttributes.IReadingAttribute"/> containing reading and pronunciation.</description></item>
+                <item><description><see cref="T:Lucene.Net.Analysis.Ja.TokenAttributes.IInflectionAttribute"/> containing additional part-of-speech information for inflected forms.</description></item>
+            </list>
+            <para/>
+            This tokenizer uses a rolling Viterbi search to find the 
+            least cost segmentation (path) of the incoming characters.
+            For tokens that appear to be compound (> length 2 for all
+            Kanji, or > length 7 for non-Kanji), we see if there is a
+            2nd best segmentation of that token after applying
+            penalties to the long tokens.  If so, and the Mode is
+            <see cref="F:Lucene.Net.Analysis.Ja.JapaneseTokenizerMode.SEARCH"/>, we output the alternate segmentation 
+            as well.
+            </remarks>
+        </member>
+        <member name="F:Lucene.Net.Analysis.Ja.JapaneseTokenizer.DEFAULT_MODE">
+            <summary>
+            Default tokenization mode. Currently this is <see cref="F:Lucene.Net.Analysis.Ja.JapaneseTokenizerMode.SEARCH"/>.
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseTokenizer.#ctor(System.IO.TextReader,Lucene.Net.Analysis.Ja.Dict.UserDictionary,System.Boolean,Lucene.Net.Analysis.Ja.JapaneseTokenizerMode)">
+            <summary>
+            Create a new JapaneseTokenizer.
+            <para/>
+            Uses the default AttributeFactory.
+            </summary>
+            <param name="input">TextReader containing text.</param>
+            <param name="userDictionary">Optional: if non-null, user dictionary.</param>
+            <param name="discardPunctuation"><c>true</c> if punctuation tokens should be dropped from the output.</param>
+            <param name="mode">Tokenization mode.</param>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseTokenizer.#ctor(Lucene.Net.Util.AttributeSource.AttributeFactory,System.IO.TextReader,Lucene.Net.Analysis.Ja.Dict.UserDictionary,System.Boolean,Lucene.Net.Analysis.Ja.JapaneseTokenizerMode)">
+            <summary>
+            Create a new JapaneseTokenizer.
+            </summary>
+            <param name="factory">The AttributeFactory to use.</param>
+            <param name="input">TextReader containing text.</param>
+            <param name="userDictionary">Optional: if non-null, user dictionary.</param>
+            <param name="discardPunctuation"><c>true</c> if punctuation tokens should be dropped from the output.</param>
+            <param name="mode">Tokenization mode.</param>
+        </member>
+        <member name="P:Lucene.Net.Analysis.Ja.JapaneseTokenizer.GraphvizFormatter">
+            <summary>
+            Expert: set this to produce graphviz (dot) output of
+            the Viterbi lattice
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseTokenizer.Parse">
+            <summary>
+            Incrementally parse some more characters.  This runs
+            the viterbi search forwards "enough" so that we
+            generate some more tokens.  How much forward depends on
+            the chars coming in, since some chars could cause
+            longer-lasting ambiguity in the parsing.  Once the
+            ambiguity is resolved, then we back trace, produce
+            the pending tokens, and return.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapaneseTokenizerMode">
+            <summary>
+            Tokenization mode: this determines how the tokenizer handles
+            compound and unknown words.
+            </summary>
+        </member>
+        <member name="F:Lucene.Net.Analysis.Ja.JapaneseTokenizerMode.NORMAL">
+            <summary>
+            Ordinary segmentation: no decomposition for compounds,
+            </summary>
+        </member>
+        <member name="F:Lucene.Net.Analysis.Ja.JapaneseTokenizerMode.SEARCH">
+            <summary>
+            Segmentation geared towards search: this includes a 
+            decompounding process for long nouns, also including
+            the full compound token as a synonym.
+            </summary>
+        </member>
+        <member name="F:Lucene.Net.Analysis.Ja.JapaneseTokenizerMode.EXTENDED">
+            <summary>
+            Extended mode outputs unigrams for unknown words.
+            <para/>
+            @lucene.experimental
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapaneseTokenizerType">
+            <summary>
+            Token type reflecting the original source of this token
+            </summary>
+        </member>
+        <member name="F:Lucene.Net.Analysis.Ja.JapaneseTokenizerType.KNOWN">
+            <summary>
+            Known words from the system dictionary.
+            </summary>
+        </member>
+        <member name="F:Lucene.Net.Analysis.Ja.JapaneseTokenizerType.UNKNOWN">
+            <summary>
+            Unknown words (heuristically segmented).
+            </summary>
+        </member>
+        <member name="F:Lucene.Net.Analysis.Ja.JapaneseTokenizerType.USER">
+            <summary>
+            Known words from the user dictionary.
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.WrappedPositionArray.Get(System.Int32)">
+            <summary>
+            Get Position instance for this absolute position;
+            this is allowed to be arbitrarily far "in the
+            future" but cannot be before the last freeBefore.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.JapaneseTokenizerFactory">
+            <summary>
+            Factory for <see cref="T:Lucene.Net.Analysis.Ja.JapaneseTokenizer"/>.
+            <code>
+            &lt;fieldType name="text_ja" class="solr.TextField"&gt;
+              &lt;analyzer&gt;
+                &lt;tokenizer class="solr.JapaneseTokenizerFactory"
+                  mode="NORMAL"
+                  userDictionary="user.txt"
+                  userDictionaryEncoding="UTF-8"
+                  discardPunctuation="true"
+                /&gt;
+                &lt;filter class="solr.JapaneseBaseFormFilterFactory"/&gt;
+              &lt;/analyzer&gt;
+            &lt;/fieldType&gt;
+            </code>
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.JapaneseTokenizerFactory.#ctor(System.Collections.Generic.IDictionary{System.String,System.String})">
+            <summary>Creates a new <see cref="T:Lucene.Net.Analysis.Ja.JapaneseTokenizerFactory"/>.</summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.Token">
+            <summary>
+            Analyzed token with morphological data from its dictionary.
+            </summary>
+        </member>
+        <member name="P:Lucene.Net.Analysis.Ja.Token.SurfaceForm">
+            <summary>
+            surfaceForm
+            </summary>
+        </member>
+        <member name="P:Lucene.Net.Analysis.Ja.Token.Offset">
+            <summary>
+            offset into surfaceForm
+            </summary>
+        </member>
+        <member name="P:Lucene.Net.Analysis.Ja.Token.Length">
+            <summary>
+            length of surfaceForm
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Token.GetSurfaceFormString">
+            <summary>
+            surfaceForm as a String
+            </summary>
+            <returns>surfaceForm as a String</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Token.GetReading">
+            <summary>
+            reading. <c>null</c> if token doesn't have reading.
+            </summary>
+            <returns>reading. <c>null</c> if token doesn't have reading.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Token.GetPronunciation">
+            <summary>
+            pronunciation. <c>null</c> if token doesn't have pronunciation.
+            </summary>
+            <returns>pronunciation. <c>null</c> if token doesn't have pronunciation.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Token.GetPartOfSpeech">
+            <summary>
+            part of speech.
+            </summary>
+            <returns>part of speech.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Token.GetInflectionType">
+            <summary>
+            inflection type or <c>null</c>
+            </summary>
+            <returns>inflection type or <c>null</c></returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Token.GetInflectionForm">
+            <summary>
+            inflection form or <c>null</c>
+            </summary>
+            <returns>inflection form or <c>null</c></returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Token.GetBaseForm">
+            <summary>
+            base form or <c>null</c> if token is not inflected
+            </summary>
+            <returns>base form or <c>null</c> if token is not inflected</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Token.IsKnown">
+            <summary>
+            Returns <c>true</c> if this token is known word.
+            </summary>
+            <returns><c>true</c> if this token is in standard dictionary. <c>false</c> if not.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Token.IsUnknown">
+            <summary>
+            Returns <c>true</c> if this token is unknown word.
+            </summary>
+            <returns><c>true</c> if this token is unknown word. <c>false</c> if not.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Token.IsUser">
+            <summary>
+            Returns <c>true</c> if this token is defined in user dictionary.
+            </summary>
+            <returns><c>true</c> if this token is in user dictionary. <c>false</c> if not.</returns>
+        </member>
+        <member name="P:Lucene.Net.Analysis.Ja.Token.Position">
+            <summary>
+            Get index of this token in input text. Returns position of token.
+            </summary>
+        </member>
+        <member name="P:Lucene.Net.Analysis.Ja.Token.PositionLength">
+            <summary>
+            Gets or Sets the length (in tokens) of this token.  For normal
+            tokens this is 1; for compound tokens it's > 1.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.TokenAttributes.IBaseFormAttribute">
+            <summary>
+            Attribute for <see cref="M:Lucene.Net.Analysis.Ja.Token.GetBaseForm"/>
+            <para/>
+            Note: depending on part of speech, this value may not be applicable,
+            and will be null.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.TokenAttributes.BaseFormAttribute">
+            <summary>
+            Attribute for <see cref="M:Lucene.Net.Analysis.Ja.Token.GetBaseForm"/>.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.TokenAttributes.IInflectionAttribute">
+            <summary>
+            Attribute for Kuromoji inflection data.
+            <para/>
+            Note: in some cases this value may not be applicable,
+            and will be null.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.TokenAttributes.InflectionAttribute">
+            <summary>
+            Attribute for Kuromoji inflection data.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.TokenAttributes.IPartOfSpeechAttribute">
+            <summary>
+            Attribute for <see cref="M:Lucene.Net.Analysis.Ja.Token.GetPartOfSpeech"/>.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.TokenAttributes.PartOfSpeechAttribute">
+            <summary>
+            Attribute for <see cref="M:Lucene.Net.Analysis.Ja.Token.GetPartOfSpeech"/>.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.TokenAttributes.IReadingAttribute">
+            <summary>
+            Attribute for Kuromoji reading data
+            <para/>
+            Note: in some cases this value may not be applicable,
+            and will be null.
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.TokenAttributes.ReadingAttribute">
+            <summary>
+            Attribute for Kuromoji reading data
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Util.BinaryDictionaryWriter.Put(System.String[])">
+            <summary>
+            Put the entry in map.
+            </summary>
+            <param name="entry"></param>
+            <returns>Current position of buffer, which will be wordId of next entry.</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Util.BinaryDictionaryWriter.Write(System.String)">
+            <summary>
+            Write dictionary in file
+            </summary>
+            <remarks>
+            Dictionary format is:
+            [Size of dictionary(int)], [entry:{left id(short)}{right id(short)}{word cost(short)}{length of pos info(short)}{pos info(char)}], [entry...], [entry...].....
+            </remarks>
+            <param name="baseDir"></param>
+            <exception cref="T:System.IO.IOException">If an I/O error occurs writing the dictionary files.</exception>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Util.CharacterDefinitionWriter.#ctor">
+            <summary>
+            Constructor for building. TODO: remove write access
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Util.CharacterDefinitionWriter.PutCharacterCategory(System.Int32,System.String)">
+            <summary>
+            Put mapping from unicode code point to character class.
+            </summary>
+            <param name="codePoint">Code point.</param>
+            <param name="characterClassName">Character class name.</param>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Util.ConnectionCostsWriter.#ctor(System.Int32,System.Int32)">
+            <summary>
+            Constructor for building. TODO: remove write access
+            </summary>
+        </member>
+        <member name="F:Lucene.Net.Analysis.Ja.Util.TokenInfoDictionaryBuilder.offset">
+            <summary>Internal word id - incrementally assigned as entries are read and added. This will be byte offset of dictionary file</summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Util.TokenInfoDictionaryBuilder.FormatEntry(System.String[])">
+            <summary>
+            IPADIC features
+            
+            0   - surface
+            1   - left cost
+            2   - right cost
+            3   - word cost
+            4-9 - pos
+            10  - base form
+            11  - reading
+            12  - pronounciation
+            
+            UniDic features
+            
+            0   - surface
+            1   - left cost
+            2   - right cost
+            3   - word cost
+            4-9 - pos
+            10  - base form reading
+            11  - base form
+            12  - surface form
+            13  - surface reading
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Util.UnknownDictionaryWriter.PutCharacterCategory(System.Int32,System.String)">
+            <summary>
+            Put mapping from unicode code point to character class.
+            </summary>
+            <param name="codePoint">Code point.</param>
+            <param name="characterClassName">Character class name.</param>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.Util.CSVUtil">
+            <summary>
+            Utility class for parsing CSV text
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Util.CSVUtil.Parse(System.String)">
+            <summary>
+            Parse CSV line
+            </summary>
+            <param name="line">line containing csv-encoded data</param>
+            <returns>Array of values</returns>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Util.CSVUtil.QuoteEscape(System.String)">
+            <summary>
+            Quote and escape input value for CSV
+            </summary>
+        </member>
+        <member name="T:Lucene.Net.Analysis.Ja.Util.ToStringUtil">
+            <summary>
+            Utility class for english translations of morphological data,
+            used only for debugging.
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Util.ToStringUtil.GetPOSTranslation(System.String)">
+            <summary>
+            Get the english form of a POS tag
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Util.ToStringUtil.GetInflectionTypeTranslation(System.String)">
+            <summary>
+            Get the english form of inflection type
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Util.ToStringUtil.GetInflectedFormTranslation(System.String)">
+            <summary>
+            Get the english form of inflected form
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Util.ToStringUtil.GetRomanization(System.String)">
+            <summary>
+            Romanize katakana with modified hepburn
+            </summary>
+        </member>
+        <member name="M:Lucene.Net.Analysis.Ja.Util.ToStringUtil.GetRomanization(System.Text.StringBuilder,System.String)">
+            <summary>
+            Romanize katakana with modified hepburn
+            </summary>
+        </member>
+    </members>
+</doc>
