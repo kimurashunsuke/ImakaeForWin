@@ -103,6 +103,10 @@ using Lucene.Net.Analysis.TokenAttributes;
  * 
  * テーブルセルを選択するとコピーできる機能がほしい
  * 
+ * NGリストをファイルから読み込むようにした
+ * -> 形態素解析メソッドを毎回読み込むたびにロードしているので起動時に一回だけ読むようにしたい
+ * -> splitがきちんと機能していないのかNGワードが機能していない
+ * 
  ***************************************/
 
 namespace WindowsFormsApp1
@@ -111,84 +115,6 @@ namespace WindowsFormsApp1
     {
         private SQLiteConnection sqliteConnection;
         private int getResFrom = 180;
-        private string[] ngList =
-        {
-            "ない",
-            "オッパ",
-            "てる",
-            "こと",
-            "だろ",
-            "たら",
-            "する",
-            "たい",
-            "スレ",
-            "レス",
-            "です",
-            "なら",
-            "なっ",
-            "これ",
-            "れる",
-            "ます",
-            "てん",
-            "お前",
-            "コドージ",
-            "クソ",
-            "せる",
-            "ます",
-            "キチガイ",
-            "だっ",
-            "やろ",
-            "ここ",
-            "じゃ",
-            "それ",
-            "やつ",
-            "なかっ",
-            "いる",
-            "もの",
-            "なん",
-            "なる",
-            "なく",
-            "まし",
-            "でしょ",
-            "マジ",
-            "でる",
-            "はぶ",
-            "ちゃう",
-            "すぎ",
-            "くれ",
-            "とけ",
-            "そこ",
-            "くる",
-            "える",
-            "られ",
-            "アホ",
-            "モー",
-            "らしい",
-            "とき",
-            "できる",
-            "でき",
-            "すぎる",
-            "ある",
-            "あと",
-            "NG",
-            "坂井",
-            "ホモ",
-            "わけ",
-            "まとも",
-            "ねー",
-            "とこ",
-            "たく",
-            "しまっ",
-            "いつ",
-            "あれ",
-            "なきゃ",
-            "ところ",
-            "たく",
-            "ただ",
-            "こっち",
-            "おまえ",
-            "うち"
-        };
 
         public Form1()
         {
@@ -199,7 +125,6 @@ namespace WindowsFormsApp1
         {
             this.initDbTable();
         }
-
 
         private void button1_Click(object sender, EventArgs e)
         {
@@ -361,6 +286,14 @@ namespace WindowsFormsApp1
 
         private bool isExcludeWord(string buzzword)
         {
+            // NGリストをファイルからロード
+            string ngListString;
+            using (var reader = new StreamReader("nglist.txt"))
+            {
+                ngListString = reader.ReadToEnd();
+            }
+            string[] ngList = ngListString.Split('\n');
+
             // 一文字の場合は漢字以外は除外
             if (buzzword.Length == 1 && !Regex.IsMatch(buzzword, @"^[\u3402-\uFA6D]+$@"))
             {
