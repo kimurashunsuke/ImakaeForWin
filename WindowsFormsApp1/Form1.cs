@@ -37,73 +37,44 @@ using Lucene.Net.Analysis.TokenAttributes;
  * NuGetは右ペインのソリューションエクスプローラーの
  * ソリューション名を右クリックで呼び出せる。
  * 
- * 正規表現はPHPのpreg関数で使ったものがそのまま使えた。
- * ロジックもそのまま流用。
- * デスクトップにPHPファイルを保存しているので参照。
+ * 形態素解析
+ * https://www.nuget.org/packages/Lucene.Net.Analysis.Kuromoji/ <- これを使った
  * 
- * 形態素解析はとりあえずPHP版そのままにYahooAPIを利用
- * １日５万件までなので連続多用注意
- * -> アプリ内で形態素解析したい
- * -> ローカルでやれるようになると
- *   https://www.nuget.org/packages/Lucene.Net.Analysis.Kuromoji/ <- これを使った
- * 　　・リクエスト数を気にしなくてよくなる
- * 　　　-> レスごとに形態素解析できる
- * 　　　  -> 投稿日でレスが登録できるようになる
- * 　　　    -> アーカイブの扱いに便利
- * 　　・速度向上する
- * 　　・sleep入れなくて良くなる（＝速度向上する）
- * 　　  -> 超高速になったけど403で弾かれた
- * 　　    -> proxy使えるようにする
- * 　　    -> sleep間隔を広げる（3秒ぐらい？）
- * 　　・ユーザ辞書が使えるようになる
- * 　　  -> 銘柄コード、銘柄名で分類できる
+ * DataGrigViewでテーブルを作った
+ *  -> わかりやすい https://dobon.net/vb/dotnet/datagridview/index.html
  * 
- * bodyが大きいと413エラー payload to largeになる
- * 文字列の分割を行うがうまくいかない？
- * 文字エンコーディングが関係か
- * どうせ将来はメカブで言語処理するのでpostするのはありかもしれん
- *  -> 配列は初期化時に配列数の定義が必須だった、これを省略していたので例外になっていた
+ * クロールのロジックはphpのロジックを流用
+ * クローリングは非同期処理で実装
+ * 
+ * NGワードはファイルから読み込むようにした
+ * 
+ * @todo
+ * ユーザ辞書を利用したい
+ * 銘柄コード、銘柄名、市場ワード
  * 
  * @todo:
  * C#内部エンコーディング（UTF-16）と取得したUTF-8のXMLの違いでバグる
  * http://bbs.wankuma.com/index.cgi?mode=al2&namber=94982
- * 
- * DataTableでリストを作る。
- *  -> リスト表示するのはDataTableではない、DataGrigViewが正しい
- *  -> わかりやすい https://dobon.net/vb/dotnet/datagridview/index.html
- *     -> つくった
  * 
  * 初期フェーズはDBを使う代わりにメモリスタブを使う。
  *  -> sqlite使ったほうが良い
  *    ->テーブル作られてない旨のエラーが出る
  *      -> テーブル作る処理を呼んでないだけだった
  * 
- * スレッド一覧をさらに分割
- * パス、スレ名、カウント->正規表現で数値だけ抜き出す
- * 
- * GUIの扱い方はAndroidとほぼ同じ
- * 
- * 初回の読み込み時に全レス読み込むため時間がかかりすぎる
- * 何らかの方法（1000レス達成したスレは読まない、10分前のレスしか読まない、など）で対処したい
- * -> 非同期処理で対処した
- * 
+ * @todo
  * 正規表現でURLが削除できていない
- * 
- * 差分のクロールがうまくいっていない
- * 
- * 前回から更新のないスレッドはクロールしないようにする
- * 
- * クローリングは非同期処理にしたい
- * -> method名asyncにしただけでは非同期処理にならない？
- *   -> 実装した
- *   
+ *  
+ * @todo
  * タイマ処理でクローリング、テーブル表示処理をそれぞれバックグラウンドで行いたい
  * 
+ * @todo
  * テーブルセルを選択するとコピーできる機能がほしい
  * 
- * NGリストをファイルから読み込むようにした
- * -> 形態素解析メソッドを毎回読み込むたびにロードしているので起動時に一回だけ読むようにしたい
- * -> splitがきちんと機能していないのかNGワードが機能していない
+ * @todo
+ * NGWordファイル、形態素解析メソッドを毎回読み込むたびにロードしているので起動時に一回だけ読むようにしたい
+ * 
+ * @todo
+ * NGワードのsplitがきちんと機能していないのかNGワードが機能していない
  * 
  ***************************************/
 
@@ -112,7 +83,7 @@ namespace WindowsFormsApp1
     public partial class Form1 : Form
     {
         private SQLiteConnection sqliteConnection;
-        private int getResFrom = 180;
+        private int getResFrom = 18000;
 
         public Form1()
         {
@@ -122,6 +93,7 @@ namespace WindowsFormsApp1
         private void Form1_Load(object sender, EventArgs e)
         {
             this.initDbTable();
+            this.initThreadsRecords();
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -140,13 +112,22 @@ namespace WindowsFormsApp1
             });
         }
 
+        private void initThreadsRecords()
+        {
+            var threads = this.GetThreadList();
+            for (int i = 0; i < threads.GetLength(0); i++)
+            {
+                this.updateThread(threads[i, 0], int.Parse(threads[i, 1]), int.Parse(threads[i, 1]));
+            }
+        }
+
         private void crawlThread()
         {
             toolStripStatusLabel1.Text = "crawl thread";
             var threads = this.GetThreadList();
             for (int i = 0; i < threads.GetLength(0); i++)
             {
-                this.updateThread(threads[i, 0], threads[i, 1]);
+                this.updateThread(threads[i, 0], int.Parse(threads[i, 1]), 2);
             }
         }
         private void crawlRes(string path, int resNo, int count)
@@ -161,40 +142,45 @@ namespace WindowsFormsApp1
             var posts = parser.ParseDocument(data).QuerySelectorAll(".post");
             foreach (var post in posts)
             {
+                System.Diagnostics.Debug.WriteLine("crawling path: " + path + "res no:" + post.QuerySelectorAll(".number").First().Text());
                 // 既に読み込み済みのレスならスキップ
                 if (latestResNo > int.Parse(post.QuerySelectorAll(".number").First().Text())) {
                     continue;
                 }
 
-                var message = post.QuerySelectorAll(".message").First().Text();
-
-                // URLを削除
-                message = System.Text.RegularExpressions.Regex.Replace(
-                    message, @"^s?https?://[-_.!~*'()a-zA-Z0-9;/?:@&=+$,%#]+$@", "");
-
-                // レスアンカーを削除
-                message = System.Text.RegularExpressions.Regex.Replace(
-                    message, @">>[0-9]+?", "");
-
-                // 空白、改行を削除
-                message = message.Replace(" ", "").Replace("　", "").Replace("\r", "");
-
-                // postの日時をUNIX Timestampに変換
+                // postの日時を取得
                 var datetimeString = post.QuerySelectorAll(".date").First().Text();
-
                 Match match = Regex.Match(datetimeString, @"^([0-9]{4}\/[0-9]{2}\/[0-9]{2}).+([0-9]{2}:[0-9]{2}:[0-9]{2})\.[0-9]{2}$");
                 DateTime datetime = DateTime.Parse(match.Groups[1].Value + " " + match.Groups[2].Value);
 
-                var words = this.morphologicalAnalysis(message);
-                foreach (var buzzword in words)
+                // x分前の投稿はスキップ
+                if (datetime > DateTime.Now.AddMinutes(this.getResFrom * -1))
                 {
-                    if (!this.isExcludeWord(buzzword))
+                    var message = post.QuerySelectorAll(".message").First().Text();
+
+                    // URLを削除
+                    message = System.Text.RegularExpressions.Regex.Replace(
+                        message, @"^s?https?://[-_.!~*'()a-zA-Z0-9;/?:@&=+$,%#]+$@", "");
+
+                    // レスアンカーを削除
+                    message = System.Text.RegularExpressions.Regex.Replace(
+                        message, @">>[0-9]+?", "");
+
+                    // 空白、改行を削除
+                    message = message.Replace(" ", "").Replace("　", "").Replace("\r", "");
+
+                    var words = this.morphologicalAnalysis(message);
+                    foreach (var buzzword in words)
                     {
-                        this.insertRes(buzzword, this.getUnixTimestamp(datetime));
+                        if (!this.isExcludeWord(buzzword))
+                        {
+                            this.insertRes(buzzword, this.getUnixTimestamp(datetime));
+                        }
                     }
                 }
 
-                latestResNo++;
+                // 最新のレス番号を既読にセット
+                latestResNo = int.Parse(post.QuerySelectorAll(".number").First().Text());
 
                 if (latestResNo >= 1000)
                 {
@@ -202,11 +188,7 @@ namespace WindowsFormsApp1
                 }
             }
 
-            var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
-            sqliteCommand.CommandText = "update threads set res_no=@res_no where path=@path";
-            sqliteCommand.Parameters.Add(new SQLiteParameter("@path", path));
-            sqliteCommand.Parameters.Add(new SQLiteParameter("@res_no", latestResNo.ToString()));
-            sqliteCommand.ExecuteNonQuery();
+            this.updateThread(path, count, latestResNo);
         }
 
         private string[,] GetThreadList()
@@ -313,6 +295,7 @@ namespace WindowsFormsApp1
 
         private void insertRes(string buzzword, int created_timestamp)
         {
+            System.Diagnostics.Debug.WriteLine("buzzword t=" + created_timestamp.ToString());
             var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
             sqliteCommand.CommandText = "INSERT INTO res (buzzword, created_timestamp) VALUES(@buzzword, @created_timestamp)";
             sqliteCommand.Parameters.Add(new SQLiteParameter("@buzzword", buzzword));
@@ -320,7 +303,7 @@ namespace WindowsFormsApp1
             sqliteCommand.ExecuteNonQuery();
         }
 
-        private void updateThread(string path, string count)
+        private void updateThread(string path, int count, int resNo)
         {
             var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
             var sqliteCommandForUpdate = new SQLiteCommand(this.sqliteConnection);
@@ -329,7 +312,8 @@ namespace WindowsFormsApp1
             reader.Read();
             if (reader.GetInt32(0) == 0)
             {
-                sqliteCommandForUpdate.CommandText = "INSERT INTO threads (path, count, res_no) VALUES(@path, @count, 2)";
+                sqliteCommandForUpdate.CommandText = "INSERT INTO threads (path, count, res_no) VALUES(@path, @count, @res_no)";
+                sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@res_no", resNo));
             }
             else
             {
