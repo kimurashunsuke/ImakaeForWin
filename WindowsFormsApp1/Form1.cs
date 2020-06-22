@@ -83,7 +83,6 @@ namespace WindowsFormsApp1
     public partial class Form1 : Form
     {
         private SQLiteConnection sqliteConnection;
-        private int getResFrom = 18000;
 
         public Form1()
         {
@@ -123,13 +122,21 @@ namespace WindowsFormsApp1
 
         private void crawlThread()
         {
-            toolStripStatusLabel1.Text = "crawl thread";
+            this.truncateRes();
             var threads = this.GetThreadList();
             for (int i = 0; i < threads.GetLength(0); i++)
             {
                 this.updateThread(threads[i, 0], int.Parse(threads[i, 1]), 2);
             }
         }
+
+        private void truncateRes()
+        {
+            var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
+            sqliteCommand.CommandText = "delete from res";
+            sqliteCommand.ExecuteNonQuery();
+        }
+
         private void crawlRes(string path, int resNo, int count)
         {
             toolStripStatusLabel1.Text = "crawl " + path;
@@ -153,29 +160,25 @@ namespace WindowsFormsApp1
                 Match match = Regex.Match(datetimeString, @"^([0-9]{4}\/[0-9]{2}\/[0-9]{2}).+([0-9]{2}:[0-9]{2}:[0-9]{2})\.[0-9]{2}$");
                 DateTime datetime = DateTime.Parse(match.Groups[1].Value + " " + match.Groups[2].Value);
 
-                // x分前の投稿はスキップ
-                if (datetime > DateTime.Now.AddMinutes(this.getResFrom * -1))
+                var message = post.QuerySelectorAll(".message").First().Text();
+
+                // URLを削除
+                message = System.Text.RegularExpressions.Regex.Replace(
+                    message, @"^s?https?://[-_.!~*'()a-zA-Z0-9;/?:@&=+$,%#]+$@", "");
+
+                // レスアンカーを削除
+                message = System.Text.RegularExpressions.Regex.Replace(
+                    message, @">>[0-9]+?", "");
+
+                // 空白、改行を削除
+                message = message.Replace(" ", "").Replace("　", "").Replace("\r", "");
+
+                var words = this.morphologicalAnalysis(message);
+                foreach (var buzzword in words)
                 {
-                    var message = post.QuerySelectorAll(".message").First().Text();
-
-                    // URLを削除
-                    message = System.Text.RegularExpressions.Regex.Replace(
-                        message, @"^s?https?://[-_.!~*'()a-zA-Z0-9;/?:@&=+$,%#]+$@", "");
-
-                    // レスアンカーを削除
-                    message = System.Text.RegularExpressions.Regex.Replace(
-                        message, @">>[0-9]+?", "");
-
-                    // 空白、改行を削除
-                    message = message.Replace(" ", "").Replace("　", "").Replace("\r", "");
-
-                    var words = this.morphologicalAnalysis(message);
-                    foreach (var buzzword in words)
+                    if (!this.isExcludeWord(buzzword))
                     {
-                        if (!this.isExcludeWord(buzzword))
-                        {
-                            this.insertRes(buzzword, this.getUnixTimestamp(datetime));
-                        }
+                        this.insertRes(buzzword, this.getUnixTimestamp(datetime));
                     }
                 }
 
@@ -257,8 +260,7 @@ namespace WindowsFormsApp1
 
 
             var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
-            sqliteCommand.CommandText = "SELECT buzzword, count(buzzword) as cnt FROM res where created_timestamp > @from group by buzzword having count(buzzword) > 3 order by cnt desc";
-            sqliteCommand.Parameters.Add(new SQLiteParameter("@from", this.getUnixTimestamp(new DateTime()) - this.getResFrom));
+            sqliteCommand.CommandText = "SELECT buzzword, count(buzzword) as cnt FROM res group by buzzword having count(buzzword) > 2 order by cnt desc";
             var reader = sqliteCommand.ExecuteReader();
             while (reader.Read())
             {
