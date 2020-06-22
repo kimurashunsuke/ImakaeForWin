@@ -81,8 +81,6 @@ using Lucene.Net.Analysis.TokenAttributes;
  * スレッド一覧をさらに分割
  * パス、スレ名、カウント->正規表現で数値だけ抜き出す
  * 
- * GitHubにリポジトリ作って保存する
- * 
  * GUIの扱い方はAndroidとほぼ同じ
  * 
  * 初回の読み込み時に全レス読み込むため時間がかかりすぎる
@@ -161,7 +159,6 @@ namespace WindowsFormsApp1
             var parser = context.GetService<IHtmlParser>();
 
             var posts = parser.ParseDocument(data).QuerySelectorAll(".post");
-            bool firstRes = true;
             foreach (var post in posts)
             {
                 // 既に読み込み済みのレスならスキップ
@@ -182,12 +179,18 @@ namespace WindowsFormsApp1
                 // 空白、改行を削除
                 message = message.Replace(" ", "").Replace("　", "").Replace("\r", "");
 
+                // postの日時をUNIX Timestampに変換
+                var datetimeString = post.QuerySelectorAll(".date").First().Text();
+
+                Match match = Regex.Match(datetimeString, @"^([0-9]{4}\/[0-9]{2}\/[0-9]{2}).+([0-9]{2}:[0-9]{2}:[0-9]{2})\.[0-9]{2}$");
+                DateTime datetime = DateTime.Parse(match.Groups[1].Value + " " + match.Groups[2].Value);
+
                 var words = this.morphologicalAnalysis(message);
                 foreach (var buzzword in words)
                 {
                     if (!this.isExcludeWord(buzzword))
                     {
-                        this.insertRes(buzzword);
+                        this.insertRes(buzzword, this.getUnixTimestamp(datetime));
                     }
                 }
 
@@ -258,9 +261,6 @@ namespace WindowsFormsApp1
                 "buzzword text NOT NULL," +
                 "created_timestamp  integer NOT NULL)";
             sqliteCommand.ExecuteNonQuery();
-
-            sqliteCommand.CommandText = "insert into res(buzzword, created_timestamp) values('res'," + this.getUnixTimestamp() + ")";
-            sqliteCommand.ExecuteNonQuery();
         }
 
         private void showTable()
@@ -276,7 +276,7 @@ namespace WindowsFormsApp1
 
             var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
             sqliteCommand.CommandText = "SELECT buzzword, count(buzzword) as cnt FROM res where created_timestamp > @from group by buzzword having count(buzzword) > 3 order by cnt desc";
-            sqliteCommand.Parameters.Add(new SQLiteParameter("@from", this.getUnixTimestamp() - this.getResFrom));
+            sqliteCommand.Parameters.Add(new SQLiteParameter("@from", this.getUnixTimestamp(new DateTime()) - this.getResFrom));
             var reader = sqliteCommand.ExecuteReader();
             while (reader.Read())
             {
@@ -311,12 +311,12 @@ namespace WindowsFormsApp1
             return false;
         }
 
-        private void insertRes(string buzzword)
+        private void insertRes(string buzzword, int created_timestamp)
         {
             var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
             sqliteCommand.CommandText = "INSERT INTO res (buzzword, created_timestamp) VALUES(@buzzword, @created_timestamp)";
             sqliteCommand.Parameters.Add(new SQLiteParameter("@buzzword", buzzword));
-            sqliteCommand.Parameters.Add(new SQLiteParameter("@created_timestamp", this.getUnixTimestamp()));
+            sqliteCommand.Parameters.Add(new SQLiteParameter("@created_timestamp", created_timestamp));
             sqliteCommand.ExecuteNonQuery();
         }
 
@@ -348,10 +348,10 @@ namespace WindowsFormsApp1
             return sqliteCommand.ExecuteReader();
         }
 
-        private uint getUnixTimestamp()
+        private int getUnixTimestamp(DateTime datetime)
         {
-            var timespan2 = DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            return (uint)timespan2.TotalSeconds;
+            var timespan2 = datetime - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            return (int)timespan2.TotalSeconds;
         }
 
 
