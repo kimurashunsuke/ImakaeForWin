@@ -76,6 +76,9 @@ using Lucene.Net.Analysis.TokenAttributes;
  * @todo
  * NGワードのsplitがきちんと機能していないのかNGワードが機能していない
  * 
+ * @todo
+ * 形態素解析の単語帳が貧弱、固有名詞など一切取得できない、使い物にならない？
+ * 
  ***************************************/
 
 namespace WindowsFormsApp1
@@ -95,8 +98,10 @@ namespace WindowsFormsApp1
             this.initThreadsRecords();
         }
 
+
         private void button1_Click(object sender, EventArgs e)
         {
+            btnGetThreads.Enabled = false;
             Task task = Task.Run(() =>
             {
                 this.crawlThread();
@@ -108,6 +113,11 @@ namespace WindowsFormsApp1
                         reader.GetInt32(1),  //res_no
                         reader.GetInt32(1)); //count
                 }
+                this.Invoke((Action)(() =>
+                {
+                    btnGetThreads.Enabled = true;
+                    toolStripStatusLabel1.Text = "crawl done " + DateTime.Now.ToString();
+                }));
             });
         }
 
