@@ -200,7 +200,6 @@ namespace WindowsFormsApp1
                     break;
                 }
             }
-
             this.updateThread(path, count, latestResNo);
         }
 
@@ -325,14 +324,14 @@ namespace WindowsFormsApp1
             if (reader.GetInt32(0) == 0)
             {
                 sqliteCommandForUpdate.CommandText = "INSERT INTO threads (path, count, res_no) VALUES(@path, @count, @res_no)";
-                sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@res_no", resNo));
             }
             else
             {
-                sqliteCommandForUpdate.CommandText = "update threads set count=@count where path=@path";
+                sqliteCommandForUpdate.CommandText = "update threads set count=@count, res_no=@res_no where path=@path";
             }
             sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@path", path));
             sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@count", count));
+            sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@res_no", resNo));
             sqliteCommandForUpdate.ExecuteNonQuery();
         }
 
