@@ -86,6 +86,128 @@ namespace WindowsFormsApp1
     public partial class Form1 : Form
     {
         private SQLiteConnection sqliteConnection;
+        private string[] ngList =
+        {
+            "ない",
+            "オッパ",
+            "てる",
+            "こと",
+            "だろ",
+            "たら",
+            "する",
+            "たい",
+            "スレ",
+            "レス",
+            "です",
+            "なら",
+            "なっ",
+            "これ",
+            "れる",
+            "てん",
+            "お前",
+            "コドージ",
+            "クソ",
+            "せる",
+            "ます",
+            "キチガイ",
+            "だっ",
+            "やろ",
+            "ここ",
+            "じゃ",
+            "それ",
+            "やつ",
+            "なかっ",
+            "いる",
+            "もの",
+            "なん",
+            "なる",
+            "なく",
+            "まし",
+            "でしょ",
+            "マジ",
+            "でる",
+            "はぶ",
+            "ちゃう",
+            "すぎ",
+            "くれ",
+            "とけ",
+            "そこ",
+            "くる",
+            "える",
+            "られ",
+            "アホ",
+            "モー",
+            "らしい",
+            "とき",
+            "できる",
+            "でき",
+            "すぎる",
+            "ある",
+            "あと",
+            "NG",
+            "坂井",
+            "ホモ",
+            "わけ",
+            "まとも",
+            "ねー",
+            "とこ",
+            "しまっ",
+            "いつ",
+            "あれ",
+            "なきゃ",
+            "ところ",
+            "たく",
+            "ただ",
+            "こっち",
+            "おまえ",
+            "うち",
+            "ああ",
+            "から",
+            "おお",
+            "けど",
+            "ちんぽ",
+            "そう",
+            "って",
+            "無い",
+            "だけ",
+            "とか",
+            "いい",
+            "もう",
+            "まだ",
+            "なんか",
+            "たま",
+            "まで",
+            "どう",
+            "さん",
+            "あっ",
+            "ﾋﾟｬｰ",
+            "まじ",
+            "ばば",
+            "ねん",
+            "ねえ",
+            "なに",
+            "でも",
+            "しか",
+            "ちょっと",
+            "くん",
+            "かも",
+            "いら",
+            "www",
+            "ｗｗｗ",
+            "やる",
+            "むら",
+            "まさし",
+            "なんて",
+            "など",
+            "ぎゃあ",
+            "この",
+            "せろ",
+            "いっ",
+            "ええ",
+            "あり",
+            "やん",
+            "おっ"
+        };
 
         public Form1()
         {
@@ -95,6 +217,7 @@ namespace WindowsFormsApp1
         private void Form1_Load(object sender, EventArgs e)
         {
             this.initDbTable();
+            this.initNgList();
             this.initThreadsRecords();
         }
 
@@ -121,6 +244,17 @@ namespace WindowsFormsApp1
             });
         }
 
+        private void initNgList()
+        {
+            var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
+            foreach (string ngWord in this.ngList)
+            {
+                sqliteCommand.CommandText = "insert into ngwords (ngword) values(@ngword)";
+                sqliteCommand.Parameters.Add(new SQLiteParameter("@ngword", ngWord));
+                sqliteCommand.ExecuteNonQuery();
+            }
+        }
+
         private void initThreadsRecords()
         {
             var threads = this.GetThreadList();
@@ -136,7 +270,22 @@ namespace WindowsFormsApp1
             var threads = this.GetThreadList();
             for (int i = 0; i < threads.GetLength(0); i++)
             {
-                this.updateThread(threads[i, 0], int.Parse(threads[i, 1]), 2);
+                if (this.existsThread(threads[i, 0]))
+                {
+                    var sqliteCommandForUpdate = new SQLiteCommand(this.sqliteConnection);
+                    sqliteCommandForUpdate.CommandText = "update threads set count=@count where path=@path";
+                    sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@path", threads[i, 0]));
+                    sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@count", threads[i, 1]));
+                    sqliteCommandForUpdate.ExecuteNonQuery();
+                }
+                else
+                {
+                    var sqliteCommandForUpdate = new SQLiteCommand(this.sqliteConnection);
+                    sqliteCommandForUpdate.CommandText = "insert into threads (path,count,res) values(@path,@count,2)";
+                    sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@path", threads[i, 0]));
+                    sqliteCommandForUpdate.Parameters.Add(new SQLiteParameter("@count", threads[i, 1]));
+                    sqliteCommandForUpdate.ExecuteNonQuery();
+                }
             }
         }
 
@@ -159,7 +308,6 @@ namespace WindowsFormsApp1
             var posts = parser.ParseDocument(data).QuerySelectorAll(".post");
             foreach (var post in posts)
             {
-                System.Diagnostics.Debug.WriteLine("crawling path: " + path + "res no:" + post.QuerySelectorAll(".number").First().Text());
                 // 既に読み込み済みのレスならスキップ
                 if (latestResNo > int.Parse(post.QuerySelectorAll(".number").First().Text())) {
                     continue;
@@ -255,6 +403,9 @@ namespace WindowsFormsApp1
                 "buzzword text NOT NULL," +
                 "created_timestamp  integer NOT NULL)";
             sqliteCommand.ExecuteNonQuery();
+            sqliteCommand.CommandText = "CREATE TABLE IF NOT EXISTS ngwords(" +
+                "ngword text NOT NULL PRIMARY KEY)";
+            sqliteCommand.ExecuteNonQuery();
         }
 
         private void showTable()
@@ -279,26 +430,21 @@ namespace WindowsFormsApp1
 
         private bool isExcludeWord(string buzzword)
         {
-            // NGリストをファイルからロード
-            string ngListString;
-            using (var reader = new StreamReader("nglist.txt"))
-            {
-                ngListString = reader.ReadToEnd();
-            }
-            string[] ngList = ngListString.Split('\n');
-
             // 一文字の場合は漢字以外は除外
             if (buzzword.Length == 1 && !Regex.IsMatch(buzzword, @"^[\u3402-\uFA6D]+$@"))
             {
                 return true;
             }
 
-            foreach (string ngWord in ngList)
+            // NGリストに適合するか
+            var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
+            sqliteCommand.CommandText = "SELECT count(*) as cnt from ngwords where ngword=@ngword";
+            sqliteCommand.Parameters.Add(new SQLiteParameter("@ngword", buzzword));
+            var reader = sqliteCommand.ExecuteReader();
+            reader.Read();
+            if (reader.GetInt32(0) == 1)
             {
-                if (ngWord == buzzword)
-                {
-                    return true;
-                }
+                return true;
             }
 
             return false;
@@ -312,6 +458,19 @@ namespace WindowsFormsApp1
             sqliteCommand.Parameters.Add(new SQLiteParameter("@buzzword", buzzword));
             sqliteCommand.Parameters.Add(new SQLiteParameter("@created_timestamp", created_timestamp));
             sqliteCommand.ExecuteNonQuery();
+        }
+
+        private bool existsThread(string path)
+        {
+            var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
+            sqliteCommand.CommandText = "SELECT count(*) as cnt from threads where path=" + path;
+            var reader = sqliteCommand.ExecuteReader();
+            reader.Read();
+            if (reader.GetInt32(0) == 0)
+            {
+                return false;
+            }
+            return true;
         }
 
         private void updateThread(string path, int count, int resNo)
