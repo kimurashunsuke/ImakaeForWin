@@ -46,8 +46,6 @@ using Lucene.Net.Analysis.TokenAttributes;
  * クロールのロジックはphpのロジックを流用
  * クローリングは非同期処理で実装
  * 
- * NGワードはファイルから読み込むようにした
- * 
  * @todo
  * ユーザ辞書を利用したい
  * 銘柄コード、銘柄名、市場ワード
@@ -71,13 +69,14 @@ using Lucene.Net.Analysis.TokenAttributes;
  * テーブルセルを選択するとコピーできる機能がほしい
  * 
  * @todo
- * NGWordファイル、形態素解析メソッドを毎回読み込むたびにロードしているので起動時に一回だけ読むようにしたい
+ * 右クリックでNGリストに追加する機能がほしい
  * 
  * @todo
- * NGワードのsplitがきちんと機能していないのかNGワードが機能していない
+ * スレ全体を読み込んでいるので最初から走査開始してパフォーマンス悪い
+ * スレの途中から読むようにしたい
  * 
  * @todo
- * 形態素解析の単語帳が貧弱、固有名詞など一切取得できない、使い物にならない？
+ * 初回起動時に自動でクロールしたい
  * 
  ***************************************/
 
@@ -86,6 +85,8 @@ namespace WindowsFormsApp1
     public partial class Form1 : Form
     {
         private SQLiteConnection sqliteConnection;
+        private bool crawling = false;
+
         private string[] ngList =
         {
             "ない",
@@ -224,7 +225,12 @@ namespace WindowsFormsApp1
 
         private void button1_Click(object sender, EventArgs e)
         {
-            btnGetThreads.Enabled = false;
+            if (this.crawling)
+            {
+                return;
+            }
+
+            this.crawling = true;
             Task task = Task.Run(() =>
             {
                 this.crawlThread();
@@ -236,11 +242,8 @@ namespace WindowsFormsApp1
                         reader.GetInt32(1),  //res_no
                         reader.GetInt32(1)); //count
                 }
-                this.Invoke((Action)(() =>
-                {
-                    btnGetThreads.Enabled = true;
-                    toolStripStatusLabel1.Text = "crawl done " + DateTime.Now.ToString();
-                }));
+                this.crawling = false;
+                toolStripStatusLabel1.Text = "crawl done " + DateTime.Now.ToString();
             });
         }
 
@@ -266,7 +269,6 @@ namespace WindowsFormsApp1
 
         private void crawlThread()
         {
-            this.truncateRes();
             var threads = this.GetThreadList();
             for (int i = 0; i < threads.GetLength(0); i++)
             {
@@ -536,6 +538,11 @@ namespace WindowsFormsApp1
             }
 
             return keywords;
+        }
+
+        private void button1_Click_1(object sender, EventArgs e)
+        {
+            this.truncateRes();
         }
     }
 }
