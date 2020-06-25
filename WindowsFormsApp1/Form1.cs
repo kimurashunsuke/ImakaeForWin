@@ -46,25 +46,18 @@ using Lucene.Net.Analysis.TokenAttributes;
  * クロールのロジックはphpのロジックを流用
  * クローリングは非同期処理で実装
  * 
+ * C#内部エンコーディング（UTF-16）と取得したUTF-8のXMLの違いでバグる
+ * http://bbs.wankuma.com/index.cgi?mode=al2&namber=94982
+ * 
+ * 初期フェーズはDBを使う代わりにsqliteでメモリスタブを使う。
+ * 
  * @todo
  * ユーザ辞書を利用したい
  * 銘柄コード、銘柄名、市場ワード
  * 
- * @todo:
- * C#内部エンコーディング（UTF-16）と取得したUTF-8のXMLの違いでバグる
- * http://bbs.wankuma.com/index.cgi?mode=al2&namber=94982
- * 
- * 初期フェーズはDBを使う代わりにメモリスタブを使う。
- *  -> sqlite使ったほうが良い
- *    ->テーブル作られてない旨のエラーが出る
- *      -> テーブル作る処理を呼んでないだけだった
- * 
  * @todo
  * 正規表現でURLが削除できていない
  *  
- * @todo
- * タイマ処理でクローリング、テーブル表示処理をそれぞれバックグラウンドで行いたい
- * 
  * @todo
  * テーブルセルを選択するとコピーできる機能がほしい
  * 
@@ -74,9 +67,6 @@ using Lucene.Net.Analysis.TokenAttributes;
  * @todo
  * スレ全体を読み込んでいるので最初から走査開始してパフォーマンス悪い
  * スレの途中から読むようにしたい
- * 
- * @todo
- * 初回起動時に自動でクロールしたい
  * 
  ***************************************/
 
@@ -207,7 +197,40 @@ namespace WindowsFormsApp1
             "ええ",
             "あり",
             "やん",
-            "おっ"
+            "おっ",
+            "下さい",
+            "ください",
+            "について",
+            "ため",
+            "立て",
+            "やっぱり",
+            "連呼",
+            "下手くそ",
+            "みたい",
+            "また",
+            "くせ",
+            "投資",
+            "言っ",
+            "買っ",
+            "明日",
+            "思う",
+            "やっ",
+            "今日",
+            "改行",
+            "マン",
+            "コテ",
+            "ンゴ",
+            "ほぼ",
+            "くらい",
+            "どこ",
+            "より",
+            "よう",
+            "やばい",
+            "まぁ",
+            "ぶす",
+            "のに",
+            "っけ",
+            "そんな"
         };
 
         public Form1()
@@ -223,7 +246,7 @@ namespace WindowsFormsApp1
         }
 
 
-        private void button1_Click(object sender, EventArgs e)
+        private void crawl()
         {
             if (this.crawling)
             {
@@ -511,11 +534,6 @@ namespace WindowsFormsApp1
         }
 
 
-        private void btnGetRes_Click(object sender, EventArgs e)
-        {
-            this.showTable();
-        }
-        
         /***********************************
          * 形態素解析
          ***********************************/
@@ -543,6 +561,22 @@ namespace WindowsFormsApp1
         private void button1_Click_1(object sender, EventArgs e)
         {
             this.truncateRes();
+        }
+
+        private void crawlTimer_Tick(object sender, EventArgs e)
+        {
+            this.crawl();
+        }
+
+        private void Form1_Shown(object sender, EventArgs e)
+        {
+            this.showTable();
+            this.crawl();
+        }
+
+        private void updateTableTimer_Tick(object sender, EventArgs e)
+        {
+            this.showTable();
         }
     }
 }

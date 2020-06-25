@@ -29,36 +29,16 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            this.btnGetThreads = new System.Windows.Forms.Button();
-            this.btnGetRes = new System.Windows.Forms.Button();
             this.dataGridView1 = new System.Windows.Forms.DataGridView();
             this.notifyIcon1 = new System.Windows.Forms.NotifyIcon(this.components);
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.toolStripStatusLabel1 = new System.Windows.Forms.ToolStripStatusLabel();
             this.button1 = new System.Windows.Forms.Button();
+            this.crawlTimer = new System.Windows.Forms.Timer(this.components);
+            this.updateTableTimer = new System.Windows.Forms.Timer(this.components);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.statusStrip1.SuspendLayout();
             this.SuspendLayout();
-            // 
-            // btnGetThreads
-            // 
-            this.btnGetThreads.Location = new System.Drawing.Point(12, 12);
-            this.btnGetThreads.Name = "btnGetThreads";
-            this.btnGetThreads.Size = new System.Drawing.Size(75, 23);
-            this.btnGetThreads.TabIndex = 0;
-            this.btnGetThreads.Text = "Crawl";
-            this.btnGetThreads.UseVisualStyleBackColor = true;
-            this.btnGetThreads.Click += new System.EventHandler(this.button1_Click);
-            // 
-            // btnGetRes
-            // 
-            this.btnGetRes.Location = new System.Drawing.Point(194, 12);
-            this.btnGetRes.Name = "btnGetRes";
-            this.btnGetRes.Size = new System.Drawing.Size(75, 23);
-            this.btnGetRes.TabIndex = 3;
-            this.btnGetRes.Text = "ShowTable";
-            this.btnGetRes.UseVisualStyleBackColor = true;
-            this.btnGetRes.Click += new System.EventHandler(this.btnGetRes_Click);
             // 
             // dataGridView1
             // 
@@ -99,13 +79,25 @@
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(94, 12);
+            this.button1.Location = new System.Drawing.Point(12, 12);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(75, 23);
             this.button1.TabIndex = 6;
             this.button1.Text = "truncate";
             this.button1.UseVisualStyleBackColor = true;
             this.button1.Click += new System.EventHandler(this.button1_Click_1);
+            // 
+            // crawlTimer
+            // 
+            this.crawlTimer.Enabled = true;
+            this.crawlTimer.Interval = 30000;
+            this.crawlTimer.Tick += new System.EventHandler(this.crawlTimer_Tick);
+            // 
+            // updateTableTimer
+            // 
+            this.updateTableTimer.Enabled = true;
+            this.updateTableTimer.Interval = 3000;
+            this.updateTableTimer.Tick += new System.EventHandler(this.updateTableTimer_Tick);
             // 
             // Form1
             // 
@@ -115,13 +107,12 @@
             this.Controls.Add(this.button1);
             this.Controls.Add(this.statusStrip1);
             this.Controls.Add(this.dataGridView1);
-            this.Controls.Add(this.btnGetRes);
-            this.Controls.Add(this.btnGetThreads);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.Name = "Form1";
             this.Text = "今買えばいい株バズワード";
             this.Load += new System.EventHandler(this.Form1_Load);
+            this.Shown += new System.EventHandler(this.Form1_Shown);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).EndInit();
             this.statusStrip1.ResumeLayout(false);
             this.statusStrip1.PerformLayout();
@@ -131,14 +122,13 @@
         }
 
         #endregion
-
-        private System.Windows.Forms.Button btnGetThreads;
-        private System.Windows.Forms.Button btnGetRes;
         private System.Windows.Forms.DataGridView dataGridView1;
         private System.Windows.Forms.NotifyIcon notifyIcon1;
         private System.Windows.Forms.StatusStrip statusStrip1;
         private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabel1;
         private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.Timer crawlTimer;
+        private System.Windows.Forms.Timer updateTableTimer;
     }
 }
 
