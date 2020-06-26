@@ -52,10 +52,6 @@ using Lucene.Net.Analysis.TokenAttributes;
  * 初期フェーズはDBを使う代わりにsqliteでメモリスタブを使う。
  * 
  * @todo
- * ユーザ辞書を利用したい
- * 銘柄コード、銘柄名、市場ワード
- * 
- * @todo
  * 正規表現でURLが削除できていない
  *  
  * @todo
@@ -533,7 +529,8 @@ namespace WindowsFormsApp1
         {
             string[] keywords = { };
             var reader = new StringReader(text);
-            Tokenizer tokenizer = new JapaneseTokenizer(reader, null, false, JapaneseTokenizerMode.NORMAL);
+            var dictReader = new StreamReader("userdict.csv", Encoding.UTF8);
+            Tokenizer tokenizer = new JapaneseTokenizer(reader, new UserDictionary(dictReader), false, JapaneseTokenizerMode.NORMAL);
             var tokenStreamComponents = new TokenStreamComponents(tokenizer, tokenizer);
             using (var tokenStream = tokenStreamComponents.TokenStream)
             {
