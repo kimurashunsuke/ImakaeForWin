@@ -35,7 +35,6 @@
             this.toolStripStatusLabel1 = new System.Windows.Forms.ToolStripStatusLabel();
             this.button1 = new System.Windows.Forms.Button();
             this.crawlTimer = new System.Windows.Forms.Timer(this.components);
-            this.updateTableTimer = new System.Windows.Forms.Timer(this.components);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.statusStrip1.SuspendLayout();
             this.SuspendLayout();
@@ -93,12 +92,6 @@
             this.crawlTimer.Interval = 30000;
             this.crawlTimer.Tick += new System.EventHandler(this.crawlTimer_Tick);
             // 
-            // updateTableTimer
-            // 
-            this.updateTableTimer.Enabled = true;
-            this.updateTableTimer.Interval = 3000;
-            this.updateTableTimer.Tick += new System.EventHandler(this.updateTableTimer_Tick);
-            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
@@ -128,7 +121,6 @@
         private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabel1;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.Timer crawlTimer;
-        private System.Windows.Forms.Timer updateTableTimer;
     }
 }
 

@@ -64,10 +64,6 @@ using Lucene.Net.Analysis.TokenAttributes;
  * @todo
  * 右クリックでNGリストに追加する機能がほしい
  * 
- * @todo
- * スレ全体を読み込んでいるので最初から走査開始してパフォーマンス悪い
- * スレの途中から読むようにしたい
- * 
  ***************************************/
 
 namespace WindowsFormsApp1
@@ -245,6 +241,7 @@ namespace WindowsFormsApp1
             this.initThreadsRecords();
         }
 
+        private delegate void DelegateShowTable();
 
         private void crawl()
         {
@@ -266,6 +263,7 @@ namespace WindowsFormsApp1
                         reader.GetInt32(1)); //count
                 }
                 this.crawling = false;
+                this.Invoke(new DelegateShowTable(this.showTable));
                 toolStripStatusLabel1.Text = "crawl done " + DateTime.Now.ToString();
             });
         }
@@ -314,19 +312,13 @@ namespace WindowsFormsApp1
             }
         }
 
-        private void truncateRes()
-        {
-            var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
-            sqliteCommand.CommandText = "delete from res";
-            sqliteCommand.ExecuteNonQuery();
-        }
 
         private void crawlRes(string path, int resNo, int count)
         {
             toolStripStatusLabel1.Text = "crawl " + path;
             Thread.Sleep(5000);
             int latestResNo = resNo;
-            var data = new WebClient().DownloadString("https://egg.5ch.net/test/read.cgi/stock/" + path);
+            var data = new WebClient().DownloadString("https://egg.5ch.net/test/read.cgi/stock/" + path + "/" + resNo + "-n");
             var context = BrowsingContext.New(Configuration.Default);
             var parser = context.GetService<IHtmlParser>();
 
@@ -445,7 +437,7 @@ namespace WindowsFormsApp1
 
 
             var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
-            sqliteCommand.CommandText = "SELECT buzzword, count(buzzword) as cnt FROM res group by buzzword having count(buzzword) > 2 order by cnt desc";
+            sqliteCommand.CommandText = "SELECT buzzword, count(buzzword) as cnt FROM res where created_timestamp > " + ((this.getUnixTimestamp(DateTime.Now)) - 300).ToString() +  " group by buzzword having count(buzzword) > 2 order by cnt desc limit 22";
             var reader = sqliteCommand.ExecuteReader();
             while (reader.Read())
             {
@@ -477,7 +469,7 @@ namespace WindowsFormsApp1
 
         private void insertRes(string buzzword, int created_timestamp)
         {
-            System.Diagnostics.Debug.WriteLine("buzzword t=" + created_timestamp.ToString());
+            System.Diagnostics.Debug.WriteLine("buzzword" + buzzword + " t=" + created_timestamp.ToString() + " now=" + this.getUnixTimestamp(DateTime.Now));
             var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
             sqliteCommand.CommandText = "INSERT INTO res (buzzword, created_timestamp) VALUES(@buzzword, @created_timestamp)";
             sqliteCommand.Parameters.Add(new SQLiteParameter("@buzzword", buzzword));
@@ -560,7 +552,7 @@ namespace WindowsFormsApp1
 
         private void button1_Click_1(object sender, EventArgs e)
         {
-            this.truncateRes();
+//            this.truncateRes();
         }
 
         private void crawlTimer_Tick(object sender, EventArgs e)
@@ -572,11 +564,6 @@ namespace WindowsFormsApp1
         {
             this.showTable();
             this.crawl();
-        }
-
-        private void updateTableTimer_Tick(object sender, EventArgs e)
-        {
-            this.showTable();
         }
     }
 }
