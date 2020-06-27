@@ -33,8 +33,8 @@
             this.notifyIcon1 = new System.Windows.Forms.NotifyIcon(this.components);
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.toolStripStatusLabel1 = new System.Windows.Forms.ToolStripStatusLabel();
-            this.button1 = new System.Windows.Forms.Button();
             this.crawlTimer = new System.Windows.Forms.Timer(this.components);
+            this.fromMinuteComboBox = new System.Windows.Forms.ComboBox();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.statusStrip1.SuspendLayout();
             this.SuspendLayout();
@@ -76,28 +76,44 @@
             this.toolStripStatusLabel1.Name = "toolStripStatusLabel1";
             this.toolStripStatusLabel1.Size = new System.Drawing.Size(0, 17);
             // 
-            // button1
-            // 
-            this.button1.Location = new System.Drawing.Point(12, 12);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(75, 23);
-            this.button1.TabIndex = 6;
-            this.button1.Text = "truncate";
-            this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click_1);
-            // 
             // crawlTimer
             // 
             this.crawlTimer.Enabled = true;
             this.crawlTimer.Interval = 30000;
             this.crawlTimer.Tick += new System.EventHandler(this.crawlTimer_Tick);
             // 
+            // fromMinuteComboBox
+            // 
+            this.fromMinuteComboBox.FormattingEnabled = true;
+            this.fromMinuteComboBox.Items.AddRange(new object[] {
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "15",
+            "20",
+            "30",
+            "60",
+            "120",
+            "180"});
+            this.fromMinuteComboBox.Location = new System.Drawing.Point(12, 12);
+            this.fromMinuteComboBox.Name = "fromMinuteComboBox";
+            this.fromMinuteComboBox.Size = new System.Drawing.Size(78, 20);
+            this.fromMinuteComboBox.TabIndex = 7;
+            this.fromMinuteComboBox.SelectedIndexChanged += new System.EventHandler(this.fromMinuteComboBox_SelectedIndexChanged);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(281, 550);
-            this.Controls.Add(this.button1);
+            this.Controls.Add(this.fromMinuteComboBox);
             this.Controls.Add(this.statusStrip1);
             this.Controls.Add(this.dataGridView1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
@@ -119,8 +135,8 @@
         private System.Windows.Forms.NotifyIcon notifyIcon1;
         private System.Windows.Forms.StatusStrip statusStrip1;
         private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabel1;
-        private System.Windows.Forms.Button button1;
         private System.Windows.Forms.Timer crawlTimer;
+        private System.Windows.Forms.ComboBox fromMinuteComboBox;
     }
 }
 

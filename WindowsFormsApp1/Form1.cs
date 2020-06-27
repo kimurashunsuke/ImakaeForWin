@@ -232,6 +232,7 @@ namespace WindowsFormsApp1
             this.initDbTable();
             this.initNgList();
             this.initThreadsRecords();
+            fromMinuteComboBox.SelectedIndex = 2;
         }
 
         private delegate void DelegateShowTable();
@@ -430,7 +431,7 @@ namespace WindowsFormsApp1
 
 
             var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
-            sqliteCommand.CommandText = "SELECT buzzword, count(buzzword) as cnt FROM res where created_timestamp > " + ((this.getUnixTimestamp(DateTime.Now)) - 300).ToString() +  " group by buzzword having count(buzzword) > 2 order by cnt desc limit 22";
+            sqliteCommand.CommandText = "SELECT buzzword, count(buzzword) as cnt FROM res where created_timestamp > " + ((this.getUnixTimestamp(DateTime.Now)) - (int.Parse(fromMinuteComboBox.Text) * 60)).ToString() +  " group by buzzword having count(buzzword) > 2 order by cnt desc limit 22";
             var reader = sqliteCommand.ExecuteReader();
             while (reader.Read())
             {
@@ -544,11 +545,6 @@ namespace WindowsFormsApp1
             return keywords;
         }
 
-        private void button1_Click_1(object sender, EventArgs e)
-        {
-//            this.truncateRes();
-        }
-
         private void crawlTimer_Tick(object sender, EventArgs e)
         {
             this.crawl();
@@ -558,6 +554,11 @@ namespace WindowsFormsApp1
         {
             this.showTable();
             this.crawl();
+        }
+
+        private void fromMinuteComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            this.showTable();
         }
     }
 }
