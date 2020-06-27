@@ -365,6 +365,7 @@ namespace WindowsFormsApp1
         private string[,] GetThreadList()
         {
             // 全スレ一覧取得
+            Thread.Sleep(3000);
             var data = new WebClient().DownloadString("https://egg.5ch.net/stock/subback.html");
             var context = BrowsingContext.New(Configuration.Default);
             var parser = context.GetService<IHtmlParser>();
@@ -400,6 +401,7 @@ namespace WindowsFormsApp1
         private void initDbTable()
         {
             var sqlConnectionSb = new SQLiteConnectionStringBuilder { DataSource = ":memory:" };
+//            var sqlConnectionSb = new SQLiteConnectionStringBuilder { DataSource = "imakae.db" };
             this.sqliteConnection = new SQLiteConnection(sqlConnectionSb.ToString());
             this.sqliteConnection.Open();
             var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
@@ -437,6 +439,7 @@ namespace WindowsFormsApp1
             {
                 dataGridView1.Rows.Add(reader[0], reader[1]);
             }
+            dataGridView1.CurrentCell = null;
         }
 
         private bool isExcludeWord(string buzzword)
@@ -457,13 +460,11 @@ namespace WindowsFormsApp1
             {
                 return true;
             }
-
             return false;
         }
 
         private void insertRes(string buzzword, int created_timestamp)
         {
-            System.Diagnostics.Debug.WriteLine("buzzword" + buzzword + " t=" + created_timestamp.ToString() + " now=" + this.getUnixTimestamp(DateTime.Now));
             var sqliteCommand = new SQLiteCommand(this.sqliteConnection);
             sqliteCommand.CommandText = "INSERT INTO res (buzzword, created_timestamp) VALUES(@buzzword, @created_timestamp)";
             sqliteCommand.Parameters.Add(new SQLiteParameter("@buzzword", buzzword));
