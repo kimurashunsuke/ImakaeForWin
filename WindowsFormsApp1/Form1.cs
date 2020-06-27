@@ -52,9 +52,6 @@ using Lucene.Net.Analysis.TokenAttributes;
  * 初期フェーズはDBを使う代わりにsqliteでメモリスタブを使う。
  * 
  * @todo
- * 正規表現でURLが削除できていない
- *  
- * @todo
  * テーブルセルを選択するとコピーできる機能がほしい
  * 
  * @todo
@@ -335,7 +332,7 @@ namespace WindowsFormsApp1
 
                 // URLを削除
                 message = System.Text.RegularExpressions.Regex.Replace(
-                    message, @"^s?https?://[-_.!~*'()a-zA-Z0-9;/?:@&=+$,%#]+$@", "");
+                    message, "http(s)?://([\\w-]+\\.)+[\\w-]+(/[\\w-./?%&=]*)?", "");
 
                 // レスアンカーを削除
                 message = System.Text.RegularExpressions.Regex.Replace(
